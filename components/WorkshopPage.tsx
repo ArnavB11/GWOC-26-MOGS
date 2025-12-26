@@ -1,92 +1,318 @@
-
 import React, { useState } from 'react';
-import { motion as motionBase } from 'framer-motion';
-import { Calendar, Users, Send } from 'lucide-react';
+import { motion as motionBase, AnimatePresence as AnimatePresenceBase } from 'framer-motion';
+import { Send, X, CheckCircle2, Loader2 } from 'lucide-react';
+import emailjs from '@emailjs/browser';
 
-// Fix for framer-motion type mismatch in the current environment
+// Fix for framer-motion type mismatch
 const motion = motionBase as any;
+const AnimatePresence = AnimatePresenceBase as any;
 
-const workshops = [
+// Initial Data
+const INITIAL_WORKSHOPS = [
   { id: '1', name: "Latte Art Basics", desc: "Master the classic heart and rosetta using Robusta's thick crema.", date: "Oct 24", time: "10:00 AM", seats: 3, img: "https://images.unsplash.com/photo-1541167760496-162955ed8a9f?auto=format&fit=crop&q=80&w=1000" },
   { id: '2', name: "Canvas & Coffee", desc: "A painting session using coffee-based pigments and watercolors.", date: "Oct 28", time: "6:00 PM", seats: 5, img: "https://images.unsplash.com/photo-1513364776144-60967b0f800f?auto=format&fit=crop&q=80&w=1000" },
   { id: '3', name: "The Robusta Brew", desc: "Deep dive into temperature and pressure variables for high-caffeine extraction.", date: "Nov 02", time: "8:00 AM", seats: 2, img: "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?auto=format&fit=crop&q=80&w=1000" },
 ];
-const WorkshopPage: React.FC = () => {
-  const [signedUp, setSignedUp] = useState(false);
 
-  const handleRegister = (e: React.FormEvent) => {
+// --- CONFIGURATION ---
+const EMAIL_CONFIG = {
+  SERVICE_ID: 'service_rrhbhig',       
+  PUBLIC_KEY: 'JflxB5iRv21YjgFDq',       
+  TEMPLATE_ID_ADMIN: 'template_bpj493v', 
+  TEMPLATE_ID_USER: 'template_n2on6k9', 
+  
+  ADMIN_EMAIL: 'robustecafe@gmail.com'
+};
+
+const WorkshopPage: React.FC = () => {
+  const [workshops, setWorkshops] = useState(INITIAL_WORKSHOPS);
+  const [reservationEmails, setReservationEmails] = useState<{ [key: string]: string }>({});
+  const [reservingId, setReservingId] = useState<string | null>(null);
+  const [hostForm, setHostForm] = useState({ idea: '', dates: '', contact: '' });
+  const [isHosting, setIsHosting] = useState(false);
+  const [modalContent, setModalContent] = useState<{ title: string; body: string } | null>(null);
+
+  // --- HANDLERS ---
+
+  const handleReservationEmailChange = (id: string, value: string) => {
+    setReservationEmails(prev => ({ ...prev, [id]: value }));
+  };
+
+  const handleHostChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setHostForm(prev => ({ ...prev, [name]: value }));
+  };
+
+  // 1. RESERVE SPOT -> Sends Email to USER
+  const handleReserveSubmit = (e: React.FormEvent, workshopId: string) => {
     e.preventDefault();
-    setSignedUp(true);
-    setTimeout(() => setSignedUp(false), 3000);
+    const userEmail = reservationEmails[workshopId];
+    if (!userEmail) return;
+
+    setReservingId(workshopId);
+
+    const workshop = workshops.find(w => w.id === workshopId);
+    if (!workshop) return;
+
+    // Params for User Email Template
+    const templateParams = {
+      to_email: userEmail,           // IMPORTANT: Configure your EmailJS template to send to {{to_email}}
+      workshop_name: workshop.name,
+      workshop_date: `${workshop.date} @ ${workshop.time}`,
+      reply_to: EMAIL_CONFIG.ADMIN_EMAIL
+    };
+
+    emailjs.send(EMAIL_CONFIG.SERVICE_ID, EMAIL_CONFIG.TEMPLATE_ID_USER, templateParams, EMAIL_CONFIG.PUBLIC_KEY)
+      .then(() => {
+        // Success: Decrement Seat
+        setWorkshops(prev => prev.map(w => {
+          if (w.id === workshopId) {
+            return { ...w, seats: Math.max(0, w.seats - 1) };
+          }
+          return w;
+        }));
+        
+        setReservingId(null);
+        setReservationEmails(prev => ({ ...prev, [workshopId]: '' }));
+
+        // Show Confirmation
+        setModalContent({
+          title: "Request Sent.",
+          body: `We have received your reservation request for "${workshop.name}". A confirmation email has been sent to ${userEmail}.`
+        });
+      })
+      .catch((err) => {
+        console.error("Reservation Failed:", err);
+        setReservingId(null);
+        alert("Failed to send reservation. Check Service ID or Template ID.");
+      });
+  };
+
+  // 2. HOST PROPOSAL -> Sends Email to ADMIN
+  const handleHostSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsHosting(true);
+
+    // Params for Admin Email Template
+    const templateParams = {
+      to_email: EMAIL_CONFIG.ADMIN_EMAIL, // Sends to Cafe
+      from_name: hostForm.contact,
+      message: hostForm.idea,
+      dates: hostForm.dates
+    };
+
+    emailjs.send(EMAIL_CONFIG.SERVICE_ID, EMAIL_CONFIG.TEMPLATE_ID_ADMIN, templateParams, EMAIL_CONFIG.PUBLIC_KEY)
+      .then(() => {
+        setIsHosting(false);
+        setHostForm({ idea: '', dates: '', contact: '' });
+        setModalContent({
+          title: "Proposal Received.",
+          body: "Your workshop concept has been sent to our curation team. We will review your dates and reach out via email shortly."
+        });
+      })
+      .catch((err) => {
+        console.error("Hosting Failed:", err);
+        setIsHosting(false);
+        alert("Failed to send proposal. Check Service ID or Template ID.");
+      });
   };
 
   return (
-    <div className="pt-32 pb-40 px-8">
+    <div className="pt-32 pb-40 px-8 bg-[#F9F8F4]">
       <div className="max-w-7xl mx-auto">
         <header className="mb-32">
-          <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-[10px] uppercase tracking-[0.5em] text-zinc-400 mb-6">Education & Mastery</motion.p>
-          <motion.h1 initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} className="text-7xl md:text-9xl font-serif italic tracking-tighter leading-none">Craft & Community.</motion.h1>
+          <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-[10px] uppercase tracking-[0.5em] text-zinc-400 mb-6 font-sans">Education & Mastery</motion.p>
+          <motion.h1 initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} className="text-7xl md:text-9xl font-serif italic tracking-tighter leading-none text-[#1A1A1A]">Craft & Community.</motion.h1>
         </header>
 
+        {/* WORKSHOPS GRID */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-40">
-          {workshops.map((w, idx) => (
-            <motion.div 
-              key={w.id} 
-              initial={{ opacity: 0, y: 30 }} 
-              animate={{ opacity: 1, y: 0 }} 
-              transition={{ delay: idx * 0.1 }}
-              className="group bg-white border border-black/5 p-8"
-            >
-              <div className="aspect-square overflow-hidden mb-8 grayscale group-hover:grayscale-0 transition-all duration-700">
-                <img src={w.img} className="w-full h-full object-cover" alt={w.name} />
-              </div>
-              <h3 className="text-3xl font-serif italic mb-4">{w.name}</h3>
-              <p className="text-sm font-sans text-zinc-500 mb-8 leading-relaxed uppercase tracking-wider">{w.desc}</p>
-              
-              <div className="flex flex-col space-y-3 mb-10 text-[10px] font-sans uppercase tracking-[0.2em] font-bold">
-                <div className="flex justify-between border-b border-black/5 pb-2">
-                  <span className="text-zinc-400">Date & Time</span>
-                  <span>{w.date} @ {w.time}</span>
-                </div>
-                <div className="flex justify-between border-b border-black/5 pb-2">
-                  <span className="text-zinc-400">Available</span>
-                  <span className={w.seats < 3 ? 'text-red-500' : ''}>{w.seats} spots left</span>
-                </div>
-              </div>
+          {workshops.map((w, idx) => {
+            const isSoldOut = w.seats === 0;
+            const isLoading = reservingId === w.id;
 
-              <form onSubmit={handleRegister} className="space-y-4">
-                <input required type="email" placeholder="EMAIL ADDRESS" className="w-full bg-[#f9f9f9] border-b border-black/10 p-3 text-[10px] font-sans uppercase tracking-widest outline-none focus:border-black transition-all" />
-                <label className="flex items-center space-x-3 cursor-pointer">
-                  <input type="checkbox" className="w-3 h-3 accent-black" />
-                  <span className="text-[9px] text-zinc-400 uppercase tracking-widest">Receive updates</span>
-                </label>
-                <button type="submit" className="w-full py-4 bg-black text-white text-[10px] uppercase tracking-[0.3em] font-bold hover:bg-zinc-800 transition-all">
-                  {signedUp ? 'Success!' : 'Reserve Seat'}
-                </button>
-              </form>
-            </motion.div>
-          ))}
+            return (
+              <motion.div 
+                key={w.id} 
+                initial={{ opacity: 0, y: 30 }} 
+                animate={{ opacity: 1, y: 0 }} 
+                transition={{ delay: idx * 0.1 }}
+                className={`group bg-white border ${isSoldOut ? 'border-red-100 bg-red-50/10' : 'border-black/5'} p-8 shadow-sm hover:shadow-xl transition-all duration-500`}
+              >
+                <div className="aspect-square overflow-hidden mb-8 relative bg-zinc-100">
+                  <img src={w.img} className={`w-full h-full object-cover transition-all duration-700 ${isSoldOut ? 'grayscale opacity-50' : 'grayscale group-hover:grayscale-0'}`} alt={w.name} />
+                  {isSoldOut && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                      <span className="bg-red-500 text-white text-[10px] uppercase tracking-[0.3em] font-bold px-4 py-2">Sold Out</span>
+                    </div>
+                  )}
+                </div>
+
+                <h3 className="text-3xl font-serif italic mb-4 text-[#1A1A1A]">{w.name}</h3>
+                <p className="text-sm font-sans text-zinc-500 mb-8 leading-relaxed uppercase tracking-wider">{w.desc}</p>
+                
+                <div className="flex flex-col space-y-3 mb-10 text-[10px] font-sans uppercase tracking-[0.2em] font-bold text-[#1A1A1A]">
+                  <div className="flex justify-between border-b border-black/5 pb-2">
+                    <span className="text-zinc-400">Date & Time</span>
+                    <span>{w.date} @ {w.time}</span>
+                  </div>
+                  <div className="flex justify-between border-b border-black/5 pb-2">
+                    <span className="text-zinc-400">Available</span>
+                    <span className={w.seats < 3 ? 'text-red-500' : 'text-emerald-600'}>{w.seats} spots left</span>
+                  </div>
+                </div>
+
+                <form onSubmit={(e) => handleReserveSubmit(e, w.id)} className="space-y-4">
+                  <input 
+                    required 
+                    type="email" 
+                    disabled={isSoldOut || isLoading}
+                    value={reservationEmails[w.id] || ''}
+                    onChange={(e) => handleReservationEmailChange(w.id, e.target.value)}
+                    placeholder={isSoldOut ? "REGISTRATION CLOSED" : "EMAIL ADDRESS"} 
+                    className="w-full bg-[#f9f9f9] border-b border-black/10 p-3 text-[10px] font-sans uppercase tracking-widest outline-none focus:border-black transition-all text-black disabled:opacity-50 disabled:cursor-not-allowed" 
+                  />
+                  
+                  <button 
+                    type="submit" 
+                    disabled={isSoldOut || isLoading}
+                    className={`w-full py-4 text-[10px] uppercase tracking-[0.3em] font-bold transition-all flex items-center justify-center space-x-2 ${
+                      isSoldOut 
+                        ? 'bg-zinc-200 text-zinc-400 cursor-not-allowed' 
+                        : 'bg-black text-white hover:bg-zinc-800'
+                    }`}
+                  >
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                        <span>Reserving...</span>
+                      </>
+                    ) : isSoldOut ? (
+                      <span>Class Full</span>
+                    ) : (
+                      <span>Reserve Spot</span>
+                    )}
+                  </button>
+                </form>
+              </motion.div>
+            );
+          })}
         </div>
 
-        {/* Host Section */}
-        <section className="bg-black text-white p-12 md:p-32 relative overflow-hidden">
+        {/* HOST SECTION */}
+        <section className="bg-black text-white p-12 md:p-32 relative overflow-hidden rounded-sm">
           <div className="max-w-2xl relative z-10">
             <h2 className="text-5xl md:text-7xl font-serif italic mb-10 tracking-tighter">Host Your Own.</h2>
-            <p className="text-sm font-sans text-zinc-400 mb-12 uppercase tracking-[0.2em] leading-relaxed">Have a craft or idea to share? We provide the canvas, the audience, and the coffee.</p>
+            <p className="text-sm font-sans text-zinc-400 mb-12 uppercase tracking-[0.2em] leading-relaxed">
+              Have a craft or idea to share? We provide the canvas, the audience, and the coffee.
+            </p>
             
-            <form className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <input placeholder="WORKSHOP IDEA" className="bg-transparent border-b border-white/20 p-4 text-[10px] font-sans uppercase tracking-widest outline-none focus:border-white transition-all" />
-              <input placeholder="PREFERRED DATES" className="bg-transparent border-b border-white/20 p-4 text-[10px] font-sans uppercase tracking-widest outline-none focus:border-white transition-all" />
-              <input placeholder="CONTACT INFO" className="bg-transparent border-b border-white/20 p-4 text-[10px] font-sans uppercase tracking-widest outline-none focus:border-white transition-all md:col-span-2" />
-              <button className="md:col-span-2 py-5 border border-white/20 hover:bg-white hover:text-black transition-all text-[11px] uppercase tracking-[0.4em] font-bold flex items-center justify-center space-x-4">
-                <span>Submit Proposal</span>
-                <Send className="w-4 h-4" />
+            <form onSubmit={handleHostSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <input 
+                name="idea"
+                value={hostForm.idea}
+                onChange={handleHostChange}
+                required
+                placeholder="WORKSHOP IDEA" 
+                className="bg-transparent border-b border-white/20 p-4 text-[10px] font-sans uppercase tracking-widest outline-none focus:border-white transition-all text-white placeholder:text-zinc-600" 
+              />
+              <input 
+                name="dates"
+                value={hostForm.dates}
+                onChange={handleHostChange}
+                required
+                placeholder="PREFERRED DATES" 
+                className="bg-transparent border-b border-white/20 p-4 text-[10px] font-sans uppercase tracking-widest outline-none focus:border-white transition-all text-white placeholder:text-zinc-600" 
+              />
+              <input 
+                name="contact"
+                type="email"
+                value={hostForm.contact}
+                onChange={handleHostChange}
+                required
+                placeholder="CONTACT EMAIL" 
+                className="bg-transparent border-b border-white/20 p-4 text-[10px] font-sans uppercase tracking-widest outline-none focus:border-white transition-all md:col-span-2 text-white placeholder:text-zinc-600" 
+              />
+              
+              <button 
+                type="submit" 
+                disabled={isHosting}
+                className="md:col-span-2 py-5 border border-white/20 hover:bg-white hover:text-black transition-all text-[11px] uppercase tracking-[0.4em] font-bold flex items-center justify-center space-x-4 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isHosting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Processing Proposal...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Submit Proposal</span>
+                    <Send className="w-4 h-4" />
+                  </>
+                )}
               </button>
             </form>
           </div>
-          <div className="absolute top-20 right-20 text-[20rem] font-serif opacity-[0.03] select-none pointer-events-none">HOST</div>
+          <div className="absolute top-20 right-20 text-[20rem] font-serif opacity-[0.03] select-none pointer-events-none text-white">HOST</div>
         </section>
       </div>
+
+      {/* DYNAMIC MODAL */}
+      <AnimatePresence>
+        {modalContent && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setModalContent(null)}
+              className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+            />
+            
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              transition={{ type: "spring", duration: 0.5 }}
+              className="relative bg-[#F9F8F4] w-full max-w-lg p-12 shadow-2xl border border-white/10 text-center"
+            >
+              <button 
+                onClick={() => setModalContent(null)}
+                className="absolute top-6 right-6 text-zinc-400 hover:text-black transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
+
+              <div className="flex justify-center mb-8">
+                <motion.div
+                  initial={{ scale: 0, rotate: -45 }}
+                  animate={{ scale: 1, rotate: 0 }}
+                  transition={{ delay: 0.2, type: "spring" }}
+                  className="w-16 h-16 bg-black text-white rounded-full flex items-center justify-center"
+                >
+                  <CheckCircle2 className="w-8 h-8" />
+                </motion.div>
+              </div>
+
+              <h3 className="text-3xl md:text-4xl font-serif italic mb-4 text-[#1A1A1A]">{modalContent.title}</h3>
+              <p className="text-xs md:text-sm font-sans text-zinc-600 uppercase tracking-widest leading-relaxed mb-8">
+                {modalContent.body}
+              </p>
+
+              <div className="text-[10px] text-zinc-400 font-mono uppercase tracking-widest">
+                Ref ID: {Math.random().toString(36).substr(2, 9).toUpperCase()}
+              </div>
+
+              <button 
+                onClick={() => setModalContent(null)}
+                className="mt-10 w-full py-4 bg-[#1A1A1A] text-white text-[10px] uppercase tracking-[0.3em] font-bold hover:bg-black transition-all"
+              >
+                Close Confirmation
+              </button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
