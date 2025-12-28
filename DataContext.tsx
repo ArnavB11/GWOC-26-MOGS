@@ -731,128 +731,168 @@ interface DataContextValue {
 const DataContext = createContext<DataContextValue | undefined>(undefined);
 
 export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const initial = loadInitialData();
-  const [menuItems, setMenuItems] = useState<CoffeeAdminItem[]>(initial.menuItems);
-  const [artItems, setArtItems] = useState<ArtAdminItem[]>(initial.artItems);
-  const [workshops, setWorkshops] = useState<WorkshopAdminItem[]>(initial.workshops);
-  const [orders, setOrders] = useState<Order[]>(() => {
-    if (typeof window === 'undefined') return [];
-    try {
-      const saved = window.localStorage.getItem(ORDERS_KEY);
-      if (!saved) return [];
-      const parsed = JSON.parse(saved) as Order[];
-      return Array.isArray(parsed) ? parsed : [];
-    } catch {
-      return [];
-    }
-  });
+  const [menuItems, setMenuItems] = useState<CoffeeAdminItem[]>([]);
+  const [artItems, setArtItems] = useState<ArtAdminItem[]>([]);
+  const [workshops, setWorkshops] = useState<WorkshopAdminItem[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
 
-  // Persist menu/art/workshops + orders snapshot to localStorage whenever they change
+  // FETCH DATA ON MOUNT
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const payload: StoredData = { menuItems, artItems, workshops, orders };
+    const fetchData = async () => {
+      try {
+        const [menuRes, artRes, workshopRes, orderRes] = await Promise.all([
+          fetch('http://localhost:5000/api/menu'),
+          fetch('http://localhost:5000/api/art'),
+          fetch('http://localhost:5000/api/workshops'),
+          fetch('http://localhost:5000/api/orders')
+        ]);
+
+        if (menuRes.ok) setMenuItems(await menuRes.json());
+        if (artRes.ok) setArtItems(await artRes.json());
+        if (workshopRes.ok) setWorkshops(await workshopRes.json());
+        if (orderRes.ok) setOrders(await orderRes.json());
+      } catch (err) {
+        console.error("Failed to fetch data:", err);
+      }
+    };
+    fetchData();
+  }, []);
+
+  // --- MENU ACTIONS ---
+  const addMenuItem = async (item: CoffeeAdminItem) => {
     try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
-    } catch {
-      // ignore write errors
-    }
-  }, [menuItems, artItems, workshops, orders]);
+      const res = await fetch('http://localhost:5000/api/menu', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(item)
+      });
+      if (res.ok) {
+        const newItem = await res.json();
+        setMenuItems(prev => [...prev, newItem]);
+      }
+    } catch (err) { console.error(err); }
+  };
 
-  // Persist orders separately under rabuste_orders for fast access in admin / cart flows
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
+  const updateMenuItem = async (id: string, updates: Partial<CoffeeAdminItem>) => {
     try {
-      window.localStorage.setItem(ORDERS_KEY, JSON.stringify(orders));
-    } catch {
-      // ignore write errors
-    }
-  }, [orders]);
-
-  const addMenuItem = (item: CoffeeAdminItem) => {
-    setMenuItems(prev => [...prev, item]);
+      await fetch(`http://localhost:5000/api/menu/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates)
+      });
+      setMenuItems(prev => prev.map(item => (item.id === id ? { ...item, ...updates } : item)));
+    } catch (err) { console.error(err); }
   };
 
-  const updateMenuItem = (id: string, updates: Partial<CoffeeAdminItem>) => {
-    setMenuItems(prev => prev.map(item => (item.id === id ? { ...item, ...updates } : item)));
+  const deleteMenuItem = async (id: string) => {
+    try {
+      await fetch(`http://localhost:5000/api/menu/${id}`, { method: 'DELETE' });
+      setMenuItems(prev => prev.filter(item => item.id !== id));
+    } catch (err) { console.error(err); }
   };
 
-  const deleteMenuItem = (id: string) => {
-    setMenuItems(prev => prev.filter(item => item.id !== id));
+  // --- ART ACTIONS ---
+  const addArtItem = async (item: ArtAdminItem) => {
+    try {
+      const res = await fetch('http://localhost:5000/api/art', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(item)
+      });
+      if (res.ok) {
+        const newItem = await res.json();
+        setArtItems(prev => [...prev, newItem]);
+      }
+    } catch (err) { console.error(err); }
   };
 
-  const addArtItem = (item: ArtAdminItem) => {
-    setArtItems(prev => [...prev, item]);
+  const updateArtItem = async (id: string, updates: Partial<ArtAdminItem>) => {
+    try {
+      await fetch(`http://localhost:5000/api/art/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates)
+      });
+      setArtItems(prev => prev.map(item => (item.id === id ? { ...item, ...updates } : item)));
+    } catch (err) { console.error(err); }
   };
 
-  const updateArtItem = (id: string, updates: Partial<ArtAdminItem>) => {
-    setArtItems(prev => prev.map(item => (item.id === id ? { ...item, ...updates } : item)));
+  const deleteArtItem = async (id: string) => {
+    try {
+      await fetch(`http://localhost:5000/api/art/${id}`, { method: 'DELETE' });
+      setArtItems(prev => prev.filter(item => item.id !== id));
+    } catch (err) { console.error(err); }
   };
 
-  const deleteArtItem = (id: string) => {
-    setArtItems(prev => prev.filter(item => item.id !== id));
+  const toggleArtStatus = async (id: string) => {
+    const item = artItems.find(a => a.id === id);
+    if (!item) return;
+    const newStatus = item.status === 'Available' ? 'Sold' : 'Available';
+    updateArtItem(id, { status: newStatus });
   };
 
-  const toggleArtStatus = (id: string) => {
-    setArtItems(prev =>
-      prev.map(item =>
-        item.id === id
-          ? { ...item, status: item.status === 'Available' ? 'Sold' : 'Available' }
-          : item
-      )
-    );
-  };
-
-  const addWorkshop = (item: WorkshopAdminItem) => {
+  // --- WORKSHOP ACTIONS ---
+  const addWorkshop = async (item: WorkshopAdminItem) => {
+    // TODO: Implement API if needed, currently read-only in UI mostly
     setWorkshops(prev => [...prev, item]);
   };
-
-  const updateWorkshop = (id: string, updates: Partial<WorkshopAdminItem>) => {
-    setWorkshops(prev => prev.map(item => (item.id === id ? { ...item, ...updates } : item)));
+  const updateWorkshop = async (id: string, updates: Partial<WorkshopAdminItem>) => {
+    setWorkshops(prev => prev.map(w => (w.id === id ? { ...w, ...updates } : w)));
+  };
+  const deleteWorkshop = async (id: string) => {
+    setWorkshops(prev => prev.filter(w => w.id !== id));
   };
 
-  const deleteWorkshop = (id: string) => {
-    setWorkshops(prev => prev.filter(item => item.id !== id));
-  };
 
-  const placeOrder = (
-    customer: OrderCustomer,
-    items: CartItem[],
-    total: number,
-    pickupTime: string
-  ): Order => {
-    const id = `#ORD-${Date.now().toString().slice(-4)}`;
-    const order: Order = {
-      id,
+  // --- ORDER ACTIONS ---
+  const placeOrder = (customer: OrderCustomer, items: CartItem[], total: number, pickupTime: string) => {
+    const newOrder: Order = {
+      id: Date.now().toString(),
       customer,
       items,
       total,
       date: new Date().toISOString(),
       pickupTime,
     };
-    setOrders(prev => [order, ...prev]);
-    return order;
+
+    // Optimistic update
+    setOrders(prev => [newOrder, ...prev]);
+
+    // Async save
+    fetch('http://localhost:5000/api/orders', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newOrder)
+    }).catch(err => console.error("Order save failed", err));
+
+    return newOrder;
   };
 
-  const value: DataContextValue = {
-    menuItems,
-    artItems,
-    workshops,
-    orders,
-    addMenuItem,
-    updateMenuItem,
-    deleteMenuItem,
-    addArtItem,
-    updateArtItem,
-    deleteArtItem,
-    toggleArtStatus,
-    addWorkshop,
-    updateWorkshop,
-    deleteWorkshop,
-    placeOrder,
-  };
-
-  return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
+  return (
+    <DataContext.Provider
+      value={{
+        menuItems,
+        artItems,
+        workshops,
+        orders,
+        addMenuItem,
+        updateMenuItem,
+        deleteMenuItem,
+        addArtItem,
+        updateArtItem,
+        deleteArtItem,
+        toggleArtStatus,
+        addWorkshop,
+        updateWorkshop,
+        deleteWorkshop,
+        placeOrder,
+      }}
+    >
+      {children}
+    </DataContext.Provider>
+  );
 };
+
 
 export const useDataContext = (): DataContextValue => {
   const ctx = useContext(DataContext);

@@ -12,7 +12,7 @@ const Hero: React.FC = () => {
 
   return (
     <section className="relative h-screen w-full overflow-hidden flex items-center justify-center bg-black">
-      <motion.div 
+      <motion.div
         style={{ scale }}
         className="absolute inset-0 z-0 overflow-hidden"
       >
@@ -55,10 +55,10 @@ const Hero: React.FC = () => {
           </motion.span>
         </motion.div>
 
-        <motion.p 
-          initial={{ opacity: 0, y: 10 }}
+        <motion.p
+          initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 1.2, duration: 1 }}
+          transition={{ delay: 1.2, duration: 1.2, ease: "easeOut" }}
           className="mt-16 text-2xl md:text-3xl font-serif text-[#F9F8F4] tracking-wide"
         >
           Reclaiming the Robusta Standard.
@@ -72,16 +72,16 @@ const Hero: React.FC = () => {
         >
           <a href="#standard" className="group flex flex-col items-center">
             <span className="text-[9px] uppercase tracking-[0.4em] mb-4 text-white/40 group-hover:text-white transition-colors">Start the Ritual</span>
-            <motion.div 
+            <motion.div
               animate={{ y: [0, 10, 0] }}
               transition={{ repeat: Infinity, duration: 2 }}
-              className="w-px h-16 bg-gradient-to-b from-white/10 to-white/60" 
+              className="w-px h-16 bg-gradient-to-b from-white/10 to-white/60"
             />
           </a>
         </motion.div>
       </div>
 
-      <motion.div 
+      <motion.div
         style={{ opacity }}
         className="absolute bottom-10 left-10 text-[8px] uppercase tracking-[0.5em] text-white/40 font-sans"
       >

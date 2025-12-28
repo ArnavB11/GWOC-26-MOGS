@@ -16,10 +16,10 @@ const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
     <footer className="bg-black text-white">
       {/* Centerpiece Wordmark: Reduced by 33% and specifically using logo2.png */}
       <div className="relative flex items-center justify-center h-[25vh] md:h-[40vh] overflow-hidden group border-b border-white/5">
-        <img 
-          src="/media/logo2.png" 
-          alt="Rabuste Mark" 
-          className="w-[66%] object-contain opacity-20 group-hover:opacity-100 transition-all duration-[1500ms] grayscale group-hover:grayscale-0"
+        <img
+          src="/media/logo2.png"
+          alt="Rabuste Mark"
+          className="w-[66%] object-contain opacity-20 group-hover:opacity-100 transition-all duration-[1500ms]"
         />
         <div className="absolute inset-0 pointer-events-none bg-gradient-to-t from-black via-transparent to-black/10" />
       </div>
@@ -28,9 +28,9 @@ const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
         <div className="col-span-1 md:col-span-2">
           {/* Brand Logo Stamp: Increased size of logo.png and tight vertical gap */}
           <div className="mb-2">
-            <img 
-              src="/media/logo.png" 
-              alt="Rabuste Logo" 
+            <img
+              src="/media/logo.png"
+              alt="Rabuste Logo"
               className="h-24 md:h-28 object-contain"
             />
           </div>
@@ -66,7 +66,7 @@ const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
       </div>
 
       <div className="max-w-7xl mx-auto px-8 py-10 flex flex-col md:row-reverse md:flex-row justify-between items-center border-t border-white/10 text-[9px] font-sans tracking-widest text-zinc-600 uppercase space-y-4 md:space-y-0">
-        <button 
+        <button
           onClick={scrollToTop}
           className="flex items-center space-x-3 mb-6 md:mb-0 hover:text-white transition-colors"
         >

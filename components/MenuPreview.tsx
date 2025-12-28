@@ -23,14 +23,28 @@ const MenuPreview: React.FC<MenuPreviewProps> = ({ onAddToCart, onGoToMenu }) =>
       <div className="max-w-7xl mx-auto">
         <div className="mb-24 flex justify-between items-end">
           <motion.div
-            initial={{ opacity: 0, x: -30 }}
-            whileInView={{ opacity: 1, x: 0 }}
+            initial="hidden"
+            whileInView="visible"
             viewport={{ once: true }}
+            variants={{
+              hidden: { opacity: 0 },
+              visible: { opacity: 1, transition: { staggerChildren: 0.2 } }
+            }}
           >
-            <span className="text-[10px] uppercase tracking-[0.5em] text-zinc-500 mb-6 block font-sans">Current Offerings</span>
-            <h2 className="text-6xl md:text-8xl font-serif tracking-tighter leading-none font-bold italic">Curated <br/> Rituals.</h2>
+            <motion.span
+              variants={{ hidden: { x: -20, opacity: 0 }, visible: { x: 0, opacity: 1, transition: { duration: 0.8 } } }}
+              className="text-[10px] uppercase tracking-[0.5em] text-zinc-500 mb-6 block font-sans"
+            >
+              Current Offerings
+            </motion.span>
+            <motion.h2
+              variants={{ hidden: { x: -30, opacity: 0 }, visible: { x: 0, opacity: 1, transition: { duration: 0.8, ease: "easeOut" } } }}
+              className="text-6xl md:text-8xl font-serif tracking-tighter leading-none font-bold italic"
+            >
+              Curated <br /> Rituals.
+            </motion.h2>
           </motion.div>
-          <button 
+          <button
             onClick={onGoToMenu}
             className="text-[10px] uppercase tracking-[0.4em] font-bold border-b border-zinc-700 pb-2 hover:border-white transition-all hidden md:block"
           >
@@ -40,7 +54,7 @@ const MenuPreview: React.FC<MenuPreviewProps> = ({ onAddToCart, onGoToMenu }) =>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-px bg-zinc-800/50 border border-zinc-800/50">
           {items.map((item, idx) => (
-            <motion.div 
+            <motion.div
               key={idx}
               initial={{ opacity: 0, y: 50 }}
               whileInView={{ opacity: 1, y: 0 }}
@@ -49,22 +63,22 @@ const MenuPreview: React.FC<MenuPreviewProps> = ({ onAddToCart, onGoToMenu }) =>
               className="bg-[#111] p-12 group"
             >
               <div className="aspect-[4/5] overflow-hidden mb-12 relative">
-                <img 
-                  src={item.image} 
-                  className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-1000"
+                <img
+                  src={item.image}
+                  className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110"
                   alt={item.name}
                 />
               </div>
 
               <h3 className="text-3xl font-serif mb-4 italic">{item.name}</h3>
               <p className="text-[10px] font-sans text-zinc-500 uppercase tracking-widest mb-10">{item.notes}</p>
-              
+
               <div className="flex justify-between items-center py-4 border-y border-zinc-800 mb-10 text-[10px] uppercase tracking-widest font-bold">
                 <span className="text-zinc-500">Payload</span>
                 <span>{item.caffeine}</span>
               </div>
 
-              <button 
+              <button
                 onClick={() => onAddToCart(item)}
                 className="w-full py-5 border border-zinc-800 hover:bg-white hover:text-black hover:border-white transition-all text-[11px] uppercase tracking-[0.4em] font-bold"
               >
@@ -73,9 +87,9 @@ const MenuPreview: React.FC<MenuPreviewProps> = ({ onAddToCart, onGoToMenu }) =>
             </motion.div>
           ))}
         </div>
-        
+
         <div className="mt-16 text-center md:hidden">
-          <button 
+          <button
             onClick={onGoToMenu}
             className="text-[10px] uppercase tracking-[0.4em] font-bold border-b border-zinc-700 pb-2"
           >

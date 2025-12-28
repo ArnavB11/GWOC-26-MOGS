@@ -21,24 +21,51 @@ const StickySection: React.FC = () => {
         {/* Left Sticky Content */}
         <div className="lg:w-[46%] lg:sticky lg:top-40 h-fit self-start z-10 pt-10">
           <motion.div
-            initial={{ opacity: 0, y: 50 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.8 }}
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: "-100px" }}
+            variants={{
+              hidden: { opacity: 0 },
+              visible: {
+                opacity: 1,
+                transition: { staggerChildren: 0.2 }
+              }
+            }}
           >
-            <span className="text-[10px] uppercase tracking-[0.5em] font-sans text-zinc-400 mb-8 block">
+            <motion.span
+              variants={{
+                hidden: { opacity: 0, y: 20 },
+                visible: { opacity: 1, y: 0, transition: { duration: 0.8 } }
+              }}
+              className="text-[10px] uppercase tracking-[0.5em] font-sans text-zinc-400 mb-8 block"
+            >
               The Philosophy
-            </span>
+            </motion.span>
+
             <h2 className="text-6xl md:text-[8rem] font-serif mb-12 leading-[0.9] tracking-tighter text-[#1A1A1A] font-bold italic">
-              A Choice, <br/> Not an <br/> Alternative.
+              <motion.div variants={{ hidden: { y: 50, opacity: 0 }, visible: { y: 0, opacity: 1, transition: { duration: 1 } } }}>A Choice,</motion.div>
+              <motion.div variants={{ hidden: { y: 50, opacity: 0 }, visible: { y: 0, opacity: 1, transition: { duration: 1 } } }}>Not an</motion.div>
+              <motion.div variants={{ hidden: { y: 50, opacity: 0 }, visible: { y: 0, opacity: 1, transition: { duration: 1 } } }}>Alternative.</motion.div>
             </h2>
-            
+
             <div className="max-w-sm space-y-10">
-              <p className="text-lg font-sans leading-relaxed text-[#1A1A1A] tracking-tight">
+              <motion.p
+                variants={{
+                  hidden: { opacity: 0, y: 20 },
+                  visible: { opacity: 1, y: 0, transition: { duration: 0.8 } }
+                }}
+                className="text-lg font-sans leading-relaxed text-[#1A1A1A] tracking-tight"
+              >
                 Rabuste is built on a singular conviction: Robusta is not inferior; it is misunderstood. We exclusively brew high-grade Robusta for its bold taste, thicker crema, and double the caffeine payload of Arabica. This is coffee for the conscious, energetic, and intentional.
-              </p>
-              
-              <div className="flex flex-col space-y-4">
+              </motion.p>
+
+              <motion.div
+                variants={{
+                  hidden: { opacity: 0 },
+                  visible: { opacity: 1, transition: { duration: 0.8 } }
+                }}
+                className="flex flex-col space-y-4"
+              >
                 <div className="flex items-center space-x-4">
                   <div className="w-10 h-px bg-zinc-300" />
                   <span className="text-[10px] uppercase tracking-[0.3em] font-bold">2x Caffeine Payload</span>
@@ -47,16 +74,22 @@ const StickySection: React.FC = () => {
                   <div className="w-10 h-px bg-zinc-300" />
                   <span className="text-[10px] uppercase tracking-[0.3em] font-bold">Intense Crema Structure</span>
                 </div>
-              </div>
+              </motion.div>
 
-              <button className="group relative pt-10 flex items-center space-x-6 text-[11px] uppercase tracking-[0.4em] font-bold">
+              <motion.button
+                variants={{
+                  hidden: { opacity: 0, x: -20 },
+                  visible: { opacity: 1, x: 0, transition: { duration: 0.8 } }
+                }}
+                className="group relative pt-10 flex items-center space-x-6 text-[11px] uppercase tracking-[0.4em] font-bold"
+              >
                 <span>The Sourcing Story</span>
-                <motion.div 
+                <motion.div
                   className="w-12 h-px bg-black"
                   whileHover={{ width: 80 }}
                   transition={{ duration: 0.4 }}
                 />
-              </button>
+              </motion.button>
             </div>
           </motion.div>
         </div>
@@ -68,7 +101,7 @@ const StickySection: React.FC = () => {
           >
             <img
               src="/media/pic1.jpeg"
-              className="w-full h-full object-cover grayscale opacity-90 hover:grayscale-0 transition-all duration-1000"
+              className="w-full h-full object-cover transition-transform duration-1000 hover:scale-110"
               alt="Robusta ritual"
             />
           </motion.div>
@@ -78,7 +111,7 @@ const StickySection: React.FC = () => {
           >
             <img
               src="/media/pic2.jpeg"
-              className="w-full h-full object-cover grayscale opacity-90 hover:grayscale-0 transition-all duration-1000"
+              className="w-full h-full object-cover transition-transform duration-1000 hover:scale-110"
               alt="Brew details"
             />
           </motion.div>
@@ -88,7 +121,7 @@ const StickySection: React.FC = () => {
           >
             <img
               src="/media/pic3.jpeg"
-              className="w-full h-full object-cover grayscale opacity-90 hover:grayscale-0 transition-all duration-1000"
+              className="w-full h-full object-cover transition-transform duration-1000 hover:scale-110"
               alt="Cafe atmosphere"
             />
           </motion.div>
