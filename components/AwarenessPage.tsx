@@ -75,7 +75,7 @@ const AwarenessPage: React.FC<AwarenessPageProps> = ({ onNavigate }) => {
             </h2>
             <p className="text-sm md:text-base text-zinc-700 leading-relaxed">
               Rabuste is built on a singular conviction: <span className="font-semibold">Robusta is not inferior; it is
-              misunderstood.</span> For decades, the conversation has centered on Arabica as the default for "good"
+                misunderstood.</span> For decades, the conversation has centered on Arabica as the default for "good"
               coffee. We intentionally stepped off that path. By sourcing only high-grade, traceable Robusta, we unlock
               a flavor spectrum that is deeper, darker, and unapologetically bold.
             </p>
@@ -150,8 +150,8 @@ const AwarenessPage: React.FC<AwarenessPageProps> = ({ onNavigate }) => {
                 viewport={{ once: true }}
                 className={`md:w-1/2 ${block.title === 'Why Only Robusta?' ? 'md:translate-x-16 lg:translate-x-24 xl:translate-x-32' : ''}`}
               >
-                <div className="aspect-[4/5] overflow-hidden grayscale opacity-80 hover:grayscale-0 hover:opacity-100 transition-all duration-1000">
-                  <img src={block.img} className="w-full h-full object-cover" alt={block.title} />
+                <div className="aspect-[4/5] overflow-hidden transition-all duration-1000 group">
+                  <img src={block.img} className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" alt={block.title} />
                 </div>
               </motion.div>
 
@@ -173,8 +173,8 @@ const AwarenessPage: React.FC<AwarenessPageProps> = ({ onNavigate }) => {
                     block.title === 'Why Only Robusta?'
                       ? handleNavigate(Page.ROBUSTA_STORY)
                       : block.title === 'The Trifecta'
-                      ? handleNavigate(Page.ART)
-                      : undefined
+                        ? handleNavigate(Page.ART)
+                        : undefined
                   }
                   className="group relative pt-6 flex items-center space-x-6 text-[11px] uppercase tracking-[0.4em] font-bold"
                 >

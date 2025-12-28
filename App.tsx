@@ -18,7 +18,7 @@ import RobustaStory from './components/RobustaStory';
 import FAQPage from './components/FAQPage';
 import { motion as motionBase, AnimatePresence } from 'framer-motion';
 import { DataProvider } from './DataContext';
-import { MenuProvider } from './context/MenuContext';
+
 import ChatWidget from './components/ChatWidget';
 
 
@@ -142,10 +142,9 @@ const App: React.FC = () => {
 
   return (
     <DataProvider>
-      <MenuProvider>
       <div className="min-h-screen font-sans bg-[#F9F8F4] text-[#1A1A1A]">
         <Header onNavigate={navigateTo} currentPage={currentPage} cartCount={cartCount} />
-        
+
         <AnimatePresence mode="wait">
           <motion.div
             key={currentPage}
@@ -154,71 +153,70 @@ const App: React.FC = () => {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.6 }}
           >
-          {currentPage === Page.HOME && (
-            <>
-              <Hero />
-              <StickySection />
-              <GalleryTeaser onNavigate={() => navigateTo(Page.ART)} />
-              <MenuPreview onAddToCart={addToCart} onGoToMenu={() => navigateTo(Page.MENU)} />
-              <Reviews />
-            </>
-          )}
+            {currentPage === Page.HOME && (
+              <>
+                <Hero />
+                <StickySection />
+                <GalleryTeaser onNavigate={() => navigateTo(Page.ART)} />
+                <MenuPreview onAddToCart={addToCart} onGoToMenu={() => navigateTo(Page.MENU)} />
+                <Reviews />
+              </>
+            )}
 
-          {currentPage === Page.MENU && (
-            <MenuPage onAddToCart={addToCart} />
-          )}
+            {currentPage === Page.MENU && (
+              <MenuPage onAddToCart={addToCart} />
+            )}
 
-          {currentPage === Page.CART && (
-            <CartPage 
-              cart={cart} 
-              onRemove={removeFromCart} 
-              onUpdateQuantity={updateQuantity}
-              onBackToMenu={() => navigateTo(Page.MENU)}
-              onClearCart={() => setCart([])}
-              onBackToHome={() => navigateTo(Page.HOME)}
-            />
-          )}
+            {currentPage === Page.CART && (
+              <CartPage
+                cart={cart}
+                onRemove={removeFromCart}
+                onUpdateQuantity={updateQuantity}
+                onBackToMenu={() => navigateTo(Page.MENU)}
+                onClearCart={() => setCart([])}
+                onBackToHome={() => navigateTo(Page.HOME)}
+              />
+            )}
 
-          {currentPage === Page.WORKSHOPS && (
-            <WorkshopPage />
-          )}
+            {currentPage === Page.WORKSHOPS && (
+              <WorkshopPage />
+            )}
 
-          {currentPage === Page.ART && (
-            <ArtPage onAddToCart={() => {}} /> 
-          )}
+            {currentPage === Page.ART && (
+              <ArtPage onAddToCart={addToCart} />
+            )}
 
-          {currentPage === Page.AWARENESS && (
-            <AwarenessPage onNavigate={navigateTo} />
-          )}
+            {currentPage === Page.AWARENESS && (
+              <AwarenessPage onNavigate={navigateTo} />
+            )}
 
-          {currentPage === Page.FIND_STORE && (
-            <FindStorePage />
-          )}
+            {currentPage === Page.FIND_STORE && (
+              <FindStorePage />
+            )}
 
-          {currentPage === Page.ROBUSTA_STORY && (
-            <RobustaStory onBack={() => navigateTo(Page.AWARENESS)} />
-          )}
+            {currentPage === Page.ROBUSTA_STORY && (
+              <RobustaStory onBack={() => navigateTo(Page.AWARENESS)} />
+            )}
 
-          {currentPage === Page.FAQ && (
-            <FAQPage />
-          )}
+            {currentPage === Page.FAQ && (
+              <FAQPage />
+            )}
 
-          {currentPage === Page.ADMIN && (
-            <AdminRoute>
-              {handleLogout => (
-                <AdminDashboard onBack={() => navigateTo(Page.HOME)} onLogout={handleLogout} />
-              )}
-            </AdminRoute>
-          )}
+            {currentPage === Page.ADMIN && (
+              <AdminRoute>
+                {handleLogout => (
+                  <AdminDashboard onBack={() => navigateTo(Page.HOME)} onLogout={handleLogout} />
+                )}
+              </AdminRoute>
+            )}
           </motion.div>
         </AnimatePresence>
 
         {currentPage !== Page.ADMIN && <Footer onNavigate={navigateTo} />}
-        
+
         {/* --- ADDED CHAT WIDGET HERE --- */}
         <ChatWidget />
       </div>
-      </MenuProvider>
     </DataProvider>
   );
 };

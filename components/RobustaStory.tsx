@@ -130,11 +130,11 @@ const RobustaStory: React.FC<RobustaStoryProps> = ({ onBack }) => {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.6 }}
-              className="relative overflow-hidden rounded-lg border border-black/10 bg-black"
+              className="relative overflow-hidden rounded-lg border border-black/10 bg-black group"
             >
               <img
                 src="/media/robusta-story1.jpg"
-                className="w-full h-56 object-cover"
+                className="w-full h-56 object-cover transition-transform duration-700 group-hover:scale-110"
                 alt="Robusta coffee plants in Vietnam"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
@@ -149,11 +149,11 @@ const RobustaStory: React.FC<RobustaStoryProps> = ({ onBack }) => {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, amount: 0.4 }}
               transition={{ duration: 0.6, delay: 0.1 }}
-              className="relative overflow-hidden rounded-lg border border-black/10 bg-black"
+              className="relative overflow-hidden rounded-lg border border-black/10 bg-black group"
             >
               <img
                 src="/media/robusta-story2.jpg"
-                className="w-full h-56 object-cover"
+                className="w-full h-56 object-cover transition-transform duration-700 group-hover:scale-110"
                 alt="Coffee being processed in India"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
@@ -168,11 +168,11 @@ const RobustaStory: React.FC<RobustaStoryProps> = ({ onBack }) => {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, amount: 0.4 }}
               transition={{ duration: 0.6, delay: 0.2 }}
-              className="relative overflow-hidden rounded-lg border border-black/10 bg-black"
+              className="relative overflow-hidden rounded-lg border border-black/10 bg-black group"
             >
               <img
                 src="/media/robusta-story3.jpg"
-                className="w-full h-56 object-cover"
+                className="w-full h-56 object-cover transition-transform duration-700 group-hover:scale-110"
                 alt="Roasting robusta coffee beans"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />

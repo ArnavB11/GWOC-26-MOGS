@@ -3,7 +3,7 @@ import React, { useEffect, useMemo, useState, useRef } from 'react';
 import { motion as motionBase } from 'framer-motion';
 import { Search, Filter } from 'lucide-react';
 import { CoffeeItem } from '../types';
-import { useMenuContext } from '../context/MenuContext';
+import { useDataContext } from '../DataContext';
 
 // Fix for framer-motion type mismatch in the current environment
 const motion = motionBase as any;
@@ -205,7 +205,7 @@ interface MenuPageProps {
 }
 
 const MenuPage: React.FC<MenuPageProps> = ({ onAddToCart }) => {
-  const { menuItems } = useMenuContext();
+  const { menuItems } = useDataContext();
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState<'default' | 'price-asc' | 'price-desc'>('default');
   const [activeCategoryId, setActiveCategoryId] = useState<string>('');
@@ -399,11 +399,10 @@ const MenuPage: React.FC<MenuPageProps> = ({ onAddToCart }) => {
                 <button
                   key={cat.id}
                   onClick={() => handleCategoryClick(cat.id)}
-                  className={`block w-full text-left px-3 py-2 rounded-md transition-colors ${
-                    activeCategoryId === cat.id
-                      ? 'bg-[#0a0a0a] text-[#F9F8F4] font-semibold'
-                      : 'text-zinc-600 hover:text-[#0a0a0a] hover:bg-black/5'
-                  }`}
+                  className={`block w-full text-left px-3 py-2 rounded-md transition-colors ${activeCategoryId === cat.id
+                    ? 'bg-[#0a0a0a] text-[#F9F8F4] font-semibold'
+                    : 'text-zinc-600 hover:text-[#0a0a0a] hover:bg-black/5'
+                    }`}
                 >
                   {cat.label}
                 </button>
@@ -494,10 +493,10 @@ const MenuPage: React.FC<MenuPageProps> = ({ onAddToCart }) => {
 
       {toastMessage && (
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: 20 }}
-          className="fixed bottom-6 right-6 bg-[#0a0a0a] text-[#F9F8F4] px-4 py-2 rounded-full text-xs uppercase tracking-[0.25em] shadow-lg"
+          initial={{ opacity: 0, y: 20, x: '-50%' }}
+          animate={{ opacity: 1, y: 0, x: '-50%' }}
+          exit={{ opacity: 0, y: 20, x: '-50%' }}
+          className="fixed top-8 left-1/2 z-50 bg-[#0a0a0a] text-[#F9F8F4] px-6 py-3 rounded-full text-xs uppercase tracking-[0.25em] shadow-xl"
         >
           {toastMessage}
         </motion.div>

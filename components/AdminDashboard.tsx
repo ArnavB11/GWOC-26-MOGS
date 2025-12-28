@@ -22,7 +22,7 @@ import {
   WorkshopAdminItem,
   Order,
 } from '../DataContext';
-import { useMenuContext } from '../context/MenuContext';
+
 
 interface AdminDashboardProps {
   onBack: () => void;
@@ -64,14 +64,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onLogout }) => 
     addWorkshop,
     addArtItem,
     orders,
-  } = useDataContext();
-
-  const {
     menuItems,
     addMenuItem,
     updateMenuItem,
     deleteMenuItem,
-  } = useMenuContext();
+  } = useDataContext();
 
   // Dynamically derive available categories from current menu items
   const categoryOptions = useMemo(
@@ -857,11 +854,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onLogout }) => 
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`w-full flex items-center space-x-3 px-3 py-2 text-left transition-all border-l-2 ${
-                activeTab === tab.id
-                  ? 'border-black font-semibold underline'
-                  : 'border-transparent text-zinc-500 hover:text-[#0a0a0a] hover:border-black/10'
-              }`}
+              className={`w-full flex items-center space-x-3 px-3 py-2 text-left transition-all border-l-2 ${activeTab === tab.id
+                ? 'border-black font-semibold underline'
+                : 'border-transparent text-zinc-500 hover:text-[#0a0a0a] hover:border-black/10'
+                }`}
             >
               <tab.icon className="w-4 h-4" />
               <span>{tab.label}</span>
@@ -1102,9 +1098,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onLogout }) => 
         <motion.div
           initial={{ opacity: 0, y: 40 }}
           animate={{ opacity: 1, y: 0 }}
-          className={`fixed bottom-6 right-6 z-50 flex items-center gap-3 px-4 py-3 bg-white border rounded-full shadow-lg ${
-            toast.type === 'success' ? 'border-black/40' : 'border-red-400'
-          }`}
+          className={`fixed bottom-6 right-6 z-50 flex items-center gap-3 px-4 py-3 bg-white border rounded-full shadow-lg ${toast.type === 'success' ? 'border-black/40' : 'border-red-400'
+            }`}
         >
           {toast.type === 'success' ? (
             <CheckCircle2 className="w-4 h-4 text-black" />
@@ -1256,11 +1251,10 @@ const ArtTable: React.FC<{
             <td className="px-6 py-4">
               <button
                 onClick={() => onToggleStatus(item.id)}
-                className={`px-3 py-1 text-[10px] uppercase tracking-[0.2em] rounded-full border ${
-                  item.status === 'Available'
-                    ? 'border-emerald-300 bg-emerald-50 text-emerald-700'
-                    : 'border-zinc-300 bg-zinc-100 text-zinc-600'
-                }`}
+                className={`px-3 py-1 text-[10px] uppercase tracking-[0.2em] rounded-full border ${item.status === 'Available'
+                  ? 'border-emerald-300 bg-emerald-50 text-emerald-700'
+                  : 'border-zinc-300 bg-zinc-100 text-zinc-600'
+                  }`}
               >
                 {item.status}
               </button>

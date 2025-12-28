@@ -16,11 +16,11 @@ const INITIAL_WORKSHOPS = [
 
 // --- CONFIGURATION ---
 const EMAIL_CONFIG = {
-  SERVICE_ID: 'service_rrhbhig',       
-  PUBLIC_KEY: 'JflxB5iRv21YjgFDq',       
-  TEMPLATE_ID_ADMIN: 'template_bpj493v', 
-  TEMPLATE_ID_USER: 'template_n2on6k9', 
-  
+  SERVICE_ID: 'service_rrhbhig',
+  PUBLIC_KEY: 'JflxB5iRv21YjgFDq',
+  TEMPLATE_ID_ADMIN: 'template_bpj493v',
+  TEMPLATE_ID_USER: 'template_n2on6k9',
+
   ADMIN_EMAIL: 'robustecafe@gmail.com'
 };
 
@@ -71,7 +71,7 @@ const WorkshopPage: React.FC = () => {
           }
           return w;
         }));
-        
+
         setReservingId(null);
         setReservationEmails(prev => ({ ...prev, [workshopId]: '' }));
 
@@ -132,15 +132,15 @@ const WorkshopPage: React.FC = () => {
             const isLoading = reservingId === w.id;
 
             return (
-              <motion.div 
-                key={w.id} 
-                initial={{ opacity: 0, y: 30 }} 
-                animate={{ opacity: 1, y: 0 }} 
+              <motion.div
+                key={w.id}
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: idx * 0.1 }}
                 className={`group bg-white border ${isSoldOut ? 'border-red-100 bg-red-50/10' : 'border-black/5'} p-8 shadow-sm hover:shadow-xl transition-all duration-500`}
               >
                 <div className="aspect-square overflow-hidden mb-8 relative bg-zinc-100">
-                  <img src={w.img} className={`w-full h-full object-cover transition-all duration-700 ${isSoldOut ? 'grayscale opacity-50' : 'grayscale group-hover:grayscale-0'}`} alt={w.name} />
+                  <img src={w.img} className={`w-full h-full object-cover transition-all duration-700 ${isSoldOut ? 'grayscale opacity-50' : ''}`} alt={w.name} />
                   {isSoldOut && (
                     <div className="absolute inset-0 flex items-center justify-center bg-black/20">
                       <span className="bg-red-500 text-white text-[10px] uppercase tracking-[0.3em] font-bold px-4 py-2">Sold Out</span>
@@ -150,7 +150,7 @@ const WorkshopPage: React.FC = () => {
 
                 <h3 className="text-3xl font-serif italic mb-4 text-[#1A1A1A]">{w.name}</h3>
                 <p className="text-sm font-sans text-zinc-500 mb-8 leading-relaxed uppercase tracking-wider">{w.desc}</p>
-                
+
                 <div className="flex flex-col space-y-3 mb-10 text-[10px] font-sans uppercase tracking-[0.2em] font-bold text-[#1A1A1A]">
                   <div className="flex justify-between border-b border-black/5 pb-2">
                     <span className="text-zinc-400">Date & Time</span>
@@ -163,24 +163,23 @@ const WorkshopPage: React.FC = () => {
                 </div>
 
                 <form onSubmit={(e) => handleReserveSubmit(e, w.id)} className="space-y-4">
-                  <input 
-                    required 
-                    type="email" 
+                  <input
+                    required
+                    type="email"
                     disabled={isSoldOut || isLoading}
                     value={reservationEmails[w.id] || ''}
                     onChange={(e) => handleReservationEmailChange(w.id, e.target.value)}
-                    placeholder={isSoldOut ? "REGISTRATION CLOSED" : "EMAIL ADDRESS"} 
-                    className="w-full bg-[#f9f9f9] border-b border-black/10 p-3 text-[10px] font-sans uppercase tracking-widest outline-none focus:border-black transition-all text-black disabled:opacity-50 disabled:cursor-not-allowed" 
+                    placeholder={isSoldOut ? "REGISTRATION CLOSED" : "EMAIL ADDRESS"}
+                    className="w-full bg-[#f9f9f9] border-b border-black/10 p-3 text-[10px] font-sans uppercase tracking-widest outline-none focus:border-black transition-all text-black disabled:opacity-50 disabled:cursor-not-allowed"
                   />
-                  
-                  <button 
-                    type="submit" 
+
+                  <button
+                    type="submit"
                     disabled={isSoldOut || isLoading}
-                    className={`w-full py-4 text-[10px] uppercase tracking-[0.3em] font-bold transition-all flex items-center justify-center space-x-2 ${
-                      isSoldOut 
-                        ? 'bg-zinc-200 text-zinc-400 cursor-not-allowed' 
+                    className={`w-full py-4 text-[10px] uppercase tracking-[0.3em] font-bold transition-all flex items-center justify-center space-x-2 ${isSoldOut
+                        ? 'bg-zinc-200 text-zinc-400 cursor-not-allowed'
                         : 'bg-black text-white hover:bg-zinc-800'
-                    }`}
+                      }`}
                   >
                     {isLoading ? (
                       <>
@@ -206,36 +205,36 @@ const WorkshopPage: React.FC = () => {
             <p className="text-sm font-sans text-zinc-400 mb-12 uppercase tracking-[0.2em] leading-relaxed">
               Have a craft or idea to share? We provide the canvas, the audience, and the coffee.
             </p>
-            
+
             <form onSubmit={handleHostSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <input 
+              <input
                 name="idea"
                 value={hostForm.idea}
                 onChange={handleHostChange}
                 required
-                placeholder="WORKSHOP IDEA" 
-                className="bg-transparent border-b border-white/20 p-4 text-[10px] font-sans uppercase tracking-widest outline-none focus:border-white transition-all text-white placeholder:text-zinc-600" 
+                placeholder="WORKSHOP IDEA"
+                className="bg-transparent border-b border-white/20 p-4 text-[10px] font-sans uppercase tracking-widest outline-none focus:border-white transition-all text-white placeholder:text-zinc-600"
               />
-              <input 
+              <input
                 name="dates"
                 value={hostForm.dates}
                 onChange={handleHostChange}
                 required
-                placeholder="PREFERRED DATES" 
-                className="bg-transparent border-b border-white/20 p-4 text-[10px] font-sans uppercase tracking-widest outline-none focus:border-white transition-all text-white placeholder:text-zinc-600" 
+                placeholder="PREFERRED DATES"
+                className="bg-transparent border-b border-white/20 p-4 text-[10px] font-sans uppercase tracking-widest outline-none focus:border-white transition-all text-white placeholder:text-zinc-600"
               />
-              <input 
+              <input
                 name="contact"
                 type="email"
                 value={hostForm.contact}
                 onChange={handleHostChange}
                 required
-                placeholder="CONTACT EMAIL" 
-                className="bg-transparent border-b border-white/20 p-4 text-[10px] font-sans uppercase tracking-widest outline-none focus:border-white transition-all md:col-span-2 text-white placeholder:text-zinc-600" 
+                placeholder="CONTACT EMAIL"
+                className="bg-transparent border-b border-white/20 p-4 text-[10px] font-sans uppercase tracking-widest outline-none focus:border-white transition-all md:col-span-2 text-white placeholder:text-zinc-600"
               />
-              
-              <button 
-                type="submit" 
+
+              <button
+                type="submit"
                 disabled={isHosting}
                 className="md:col-span-2 py-5 border border-white/20 hover:bg-white hover:text-black transition-all text-[11px] uppercase tracking-[0.4em] font-bold flex items-center justify-center space-x-4 disabled:opacity-50 disabled:cursor-not-allowed"
               >
@@ -261,14 +260,14 @@ const WorkshopPage: React.FC = () => {
       <AnimatePresence>
         {modalContent && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setModalContent(null)}
               className="absolute inset-0 bg-black/80 backdrop-blur-sm"
             />
-            
+
             <motion.div
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -276,7 +275,7 @@ const WorkshopPage: React.FC = () => {
               transition={{ type: "spring", duration: 0.5 }}
               className="relative bg-[#F9F8F4] w-full max-w-lg p-12 shadow-2xl border border-white/10 text-center"
             >
-              <button 
+              <button
                 onClick={() => setModalContent(null)}
                 className="absolute top-6 right-6 text-zinc-400 hover:text-black transition-colors"
               >
@@ -303,7 +302,7 @@ const WorkshopPage: React.FC = () => {
                 Ref ID: {Math.random().toString(36).substr(2, 9).toUpperCase()}
               </div>
 
-              <button 
+              <button
                 onClick={() => setModalContent(null)}
                 className="mt-10 w-full py-4 bg-[#1A1A1A] text-white text-[10px] uppercase tracking-[0.3em] font-bold hover:bg-black transition-all"
               >

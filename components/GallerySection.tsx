@@ -12,19 +12,19 @@ const GallerySection: React.FC = () => {
   return (
     <section className="relative h-[120vh] w-full bg-black overflow-hidden flex items-center justify-center">
       {/* Immersive Background */}
-      <motion.div 
+      <motion.div
         style={{ y: yBanner }}
         className="absolute inset-0 z-0"
       >
-        <img 
-          src="https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?auto=format&fit=crop&q=80&w=1945" 
-          className="w-full h-full object-cover opacity-60 grayscale hover:grayscale-0 transition-all duration-1000"
+        <img
+          src="https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?auto=format&fit=crop&q=80&w=1945"
+          className="w-full h-full object-cover transition-all duration-1000"
           alt="Art Gallery Background"
         />
       </motion.div>
 
       {/* Floating Content Box */}
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, scale: 0.9 }}
         whileInView={{ opacity: 1, scale: 1 }}
         viewport={{ once: true, margin: "-100px" }}

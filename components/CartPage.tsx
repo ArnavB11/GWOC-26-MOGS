@@ -46,8 +46,7 @@ const CartPage: React.FC<CartPageProps> = ({
   }, []);
 
   const subtotal = cart.reduce((acc, item) => acc + item.price * item.quantity, 0);
-  const tax = subtotal * 0.085;
-  const total = subtotal + tax;
+  const total = subtotal;
 
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [successOpen, setSuccessOpen] = useState(false);
@@ -265,10 +264,6 @@ const CartPage: React.FC<CartPageProps> = ({
                   <span className="text-zinc-600">Subtotal</span>
                   <span>₹{subtotal.toFixed(0)}</span>
                 </div>
-                <div className="flex justify-between text-xs text-zinc-500">
-                  <span>Tax (approx. 8.5%)</span>
-                  <span>₹{tax.toFixed(0)}</span>
-                </div>
                 <div className="flex justify-between pt-3 mt-2 border-t border-black/10 text-base font-semibold">
                   <span>Total</span>
                   <span>₹{total.toFixed(0)}</span>
@@ -298,7 +293,7 @@ const CartPage: React.FC<CartPageProps> = ({
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-className="w-full max-w-md mx-4 bg-white rounded-xl border border-black/10 shadow-xl p-6 md:p-8"
+              className="w-full max-w-md mx-4 bg-white rounded-xl border border-black/10 shadow-xl p-6 md:p-8"
             >
               <h2 className="text-2xl font-serif mb-4">Pay at Counter</h2>
               <p className="text-xs text-zinc-500 font-sans mb-6">
@@ -385,7 +380,7 @@ className="w-full max-w-md mx-4 bg-white rounded-xl border border-black/10 shado
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-className="w-full max-w-md mx-4 bg-white rounded-xl border border-black/10 shadow-xl p-6 md:p-8 text-center"
+              className="w-full max-w-md mx-4 bg-white rounded-xl border border-black/10 shadow-xl p-6 md:p-8 text-center"
             >
               <CheckCircle2 className="w-16 h-16 mx-auto mb-6 text-black" />
               <h2 className="text-2xl font-serif mb-3">Order Placed Successfully</h2>

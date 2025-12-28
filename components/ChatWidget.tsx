@@ -12,7 +12,16 @@ export default function ChatWidget() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  // 1. SESSION ID MANAGEMENT
+  const [sessionId, setSessionId] = useState('');
+
   useEffect(() => {
+    let storedSession = localStorage.getItem('chatSessionId');
+    if (!storedSession) {
+      storedSession = 'sess_' + Math.random().toString(36).substr(2, 9);
+      localStorage.setItem('chatSessionId', storedSession);
+    }
+    setSessionId(storedSession);
     scrollToBottom();
   }, [messages]);
 
@@ -25,12 +34,12 @@ export default function ChatWidget() {
     setIsLoading(true);
 
     try {
-      // NEW VERSION (Update your file to this)
-      const response = await fetch('http://localhost:5000/chat', {
+      const response = await fetch('http://localhost:5000/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           message: userMessage,
+          sessionId: sessionId, // SEND SESSION ID
           history: messages.map(m => ({
             role: m.isUser ? "user" : "model",
             parts: [{ text: m.text }]
@@ -65,7 +74,7 @@ export default function ChatWidget() {
       {/* 2. THE CHAT WINDOW */}
       {isOpen && (
         <div className="bg-[#FAF9F6] rounded-2xl shadow-2xl w-80 sm:w-96 flex flex-col border-2 border-[#2C1810] overflow-hidden" style={{ height: '550px' }}>
-          
+
           {/* Header: Dark Espresso Background */}
           <div className="bg-[#2C1810] text-[#F3E5AB] p-4 flex justify-between items-center shadow-md">
             <div className="flex items-center gap-2">
@@ -85,22 +94,21 @@ export default function ChatWidget() {
             {messages.length === 0 && (
               <div className="text-center mt-10 opacity-60">
                 <Coffee className="w-12 h-12 mx-auto text-[#2C1810] mb-2" />
-                <p className="text-[#2C1810] text-sm">Welcome to Rabuste.<br/>How can I help you brew today?</p>
+                <p className="text-[#2C1810] text-sm">Welcome to Rabuste.<br />How can I help you brew today?</p>
               </div>
             )}
-            
+
             {messages.map((msg, index) => (
               <div key={index} className={`flex ${msg.isUser ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-[85%] p-3 text-sm shadow-sm whitespace-pre-line ${
-                  msg.isUser 
-                    ? 'bg-[#2C1810] text-[#F3E5AB] rounded-2xl rounded-br-sm' // User: Espresso color
-                    : 'bg-[#EFEBE9] text-[#2C1810] border border-[#d7ccc8] rounded-2xl rounded-bl-sm' // Bot: Milk foam color
-                }`}>
+                <div className={`max-w-[85%] p-3 text-sm shadow-sm whitespace-pre-line ${msg.isUser
+                  ? 'bg-[#2C1810] text-[#F3E5AB] rounded-2xl rounded-br-sm' // User: Espresso color
+                  : 'bg-[#EFEBE9] text-[#2C1810] border border-[#d7ccc8] rounded-2xl rounded-bl-sm' // Bot: Milk foam color
+                  }`}>
                   {msg.text}
                 </div>
               </div>
             ))}
-            
+
             {isLoading && (
               <div className="flex justify-start">
                 <div className="bg-[#EFEBE9] p-3 rounded-2xl rounded-bl-sm border border-[#d7ccc8] flex items-center gap-2">
