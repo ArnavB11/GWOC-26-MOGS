@@ -1,9 +1,8 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import Fuse from 'fuse.js';
 import { db, initDb } from './db.js';
-import { knowledge } from './data/knowledge.js';
+import { initializeKnowledge, rebuildKnowledgeIndex, getFuseKnowledge } from './data/knowledgeManager.js';
 
 import fs from 'fs';
 import path from 'path';
@@ -42,6 +41,8 @@ app.post('/api/menu', (req, res) => {
         [id, name, category, price, caffeine, image, description, tags], (err) => {
             if (err) return res.status(500).json({ error: err.message });
             res.json({ id, ...req.body });
+            // Rebuild knowledge index after adding menu item
+            rebuildKnowledgeIndex(db).catch(err => console.error('Error rebuilding knowledge after menu POST:', err));
         });
 });
 app.put('/api/menu/:id', (req, res) => {
@@ -50,12 +51,16 @@ app.put('/api/menu/:id', (req, res) => {
         [name, category, price, caffeine, image, description, tags, req.params.id], (err) => {
             if (err) return res.status(500).json({ error: err.message });
             res.json({ message: "Updated" });
+            // Rebuild knowledge index after updating menu item
+            rebuildKnowledgeIndex(db).catch(err => console.error('Error rebuilding knowledge after menu PUT:', err));
         });
 });
 app.delete('/api/menu/:id', (req, res) => {
     db.run("DELETE FROM menu_items WHERE id = ?", req.params.id, (err) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json({ message: "Deleted" });
+        // Rebuild knowledge index after deleting menu item
+        rebuildKnowledgeIndex(db).catch(err => console.error('Error rebuilding knowledge after menu DELETE:', err));
     });
 });
 
@@ -71,6 +76,8 @@ app.post('/api/art', (req, res) => {
         [id, title, artist, price, status, image], (err) => {
             if (err) return res.status(500).json({ error: err.message });
             res.json(req.body);
+            // Rebuild knowledge index after adding art item
+            rebuildKnowledgeIndex(db).catch(err => console.error('Error rebuilding knowledge after art POST:', err));
         });
 });
 app.put('/api/art/:id', (req, res) => {
@@ -84,12 +91,16 @@ app.put('/api/art/:id', (req, res) => {
     db.run(sql, params, (err) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json({ message: "Updated" });
+        // Rebuild knowledge index after updating art item
+        rebuildKnowledgeIndex(db).catch(err => console.error('Error rebuilding knowledge after art PUT:', err));
     });
 });
 app.delete('/api/art/:id', (req, res) => {
     db.run("DELETE FROM art_items WHERE id = ?", req.params.id, (err) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json({ message: "Deleted" });
+        // Rebuild knowledge index after deleting art item
+        rebuildKnowledgeIndex(db).catch(err => console.error('Error rebuilding knowledge after art DELETE:', err));
     });
 });
 
@@ -119,8 +130,7 @@ app.post('/api/orders', (req, res) => {
 // -----------------------------------------------------
 // INTELLIGENT CHATBOT
 // -----------------------------------------------------
-const fuseOptions = { keys: ['tags'], threshold: 0.3, includeScore: true, ignoreLocation: true };
-const fuseKnowledge = new Fuse(knowledge, fuseOptions);
+// Knowledge index is managed by knowledgeManager.js and updated dynamically
 
 app.post('/api/chat', (req, res) => {
     const { message, sessionId } = req.body;
@@ -277,8 +287,11 @@ app.post('/api/chat', (req, res) => {
                 if (isPriceSort) return res.json({ reply: `I couldn't find any items matching those criteria.` });
 
                 // FALLTHROUGH to Knowledge if Menu search fails (e.g. "Suggest story?")
-                const fuseRes = fuseKnowledge.search(msg);
-                if (fuseRes.length > 0) return res.json({ reply: fuseRes[0].item.response });
+                const fuseKnowledge = getFuseKnowledge();
+                if (fuseKnowledge) {
+                    const fuseRes = fuseKnowledge.search(msg);
+                    if (fuseRes.length > 0) return res.json({ reply: fuseRes[0].item.response });
+                }
 
                 return res.json({ reply: "I'm not sure. Try asking for 'coffee', 'food', or 'help'." });
             }
@@ -296,16 +309,20 @@ app.post('/api/chat', (req, res) => {
                 return res.json({ reply: `The **${adj} ${cat}** we have is the **${item.name}** at ₹${item.price}.` });
             }
 
+            const itemTags = item.tags ? item.tags.split(',').slice(0, 3).join(', ') : 'a great choice';
             return res.json({
-                reply: `I suggest the **${item.name}** (₹${item.price}).\n\nIt's ${item.tags.split(',').slice(0, 3).join(', ')}.`
+                reply: `I suggest the **${item.name}** (₹${item.price}).\n\nIt's ${itemTags}.`
             });
         });
         return;
     }
 
     // --- FALLBACK: KNOWLEDGE BASE ---
-    const results = fuseKnowledge.search(msg);
-    if (results.length > 0) return res.json({ reply: results[0].item.response });
+    const fuseKnowledge = getFuseKnowledge();
+    if (fuseKnowledge) {
+        const results = fuseKnowledge.search(msg);
+        if (results.length > 0) return res.json({ reply: results[0].item.response });
+    }
 
     // --- FALLBACK: GENERAL MENU/HELP ---
     if (msg.includes('menu')) return res.json({ reply: "Ask me to 'suggest a drink' or 'show food options'!" });
@@ -313,6 +330,8 @@ app.post('/api/chat', (req, res) => {
     res.json({ reply: "I didn't quite catch that. Im a smart barista, try asking me 'What is the cheapest coffee?' or 'Suggest a snack'!" });
 });
 
-initDb().then(() => {
+initDb().then(async () => {
+    // Initialize knowledge index after database is ready
+    await initializeKnowledge(db);
     app.listen(PORT, () => { console.log(`🚀 Intelligent Server running on http://localhost:${PORT}`); });
 });
