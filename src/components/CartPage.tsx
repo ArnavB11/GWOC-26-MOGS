@@ -54,6 +54,10 @@ const CartPage: React.FC<CartPageProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [customer, setCustomer] = useState({ name: '', phone: '', email: '' });
   const [pickupTime, setPickupTime] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState<'counter' | 'upi'>('counter');
+  
+  // Razorpay configuration
+  const RAZORPAY_KEY_ID = import.meta.env.VITE_RAZORPAY_KEY_ID as string;
 
   // Generates simple <tr><td> rows to be injected into the EmailJS template table
   const generateEmailHTML = (items: CartItem[]) => {
@@ -105,37 +109,58 @@ const CartPage: React.FC<CartPageProps> = ({
     setSubmitting(true);
     setError(null);
 
+    const orderData = {
+      id: Date.now().toString(),
+      customer: { name, phone: customer.phone, email },
+      items: cart,
+      total,
+      pickupTime,
+      date: new Date().toISOString()
+    };
+
     try {
-      const order = placeOrder(
-        { name, phone: customer.phone, email },
-        cart,
-        total,
-        pickupTime
-      );
+      if (paymentMethod === 'upi') {
+        // Handle UPI payment flow
+        await handleRazorpayPayment(orderData);
+      } else {
+        // Handle Pay at Counter flow (existing flow)
+        const order = await placeOrder(
+          { name, phone: customer.phone, email },
+          cart,
+          total,
+          pickupTime,
+          'counter'
+        );
 
-      const itemsHTML = generateEmailHTML(cart);
+        // Order saved successfully - now try to send email (non-blocking)
+        try {
+          const itemsHTML = generateEmailHTML(cart);
+          await emailjs.send(
+            EMAILJS_SERVICE_ID,
+            EMAILJS_TEMPLATE_ID,
+            {
+              to_name: name,
+              to_email: email,
+              order_id: order.id,
+              message: itemsHTML,
+              total_price: total.toFixed(0),
+              pickup_time: pickupTime,
+            },
+            EMAILJS_PUBLIC_KEY
+          );
+        } catch (emailError) {
+          // Email failed but order was saved - log it but don't fail the checkout
+          console.warn('Email sending failed (order was saved):', emailError);
+        }
 
-      await emailjs.send(
-        EMAILJS_SERVICE_ID,
-        EMAILJS_TEMPLATE_ID,
-        {
-          to_name: name,
-          to_email: email,
-          order_id: order.id,
-          message: itemsHTML,
-          total_price: total.toFixed(0),
-          pickup_time: pickupTime,
-        },
-        EMAILJS_PUBLIC_KEY
-      );
-
-      onClearCart();
-      setCheckoutOpen(false);
-      setSuccessOpen(true);
+        onClearCart();
+        setCheckoutOpen(false);
+        setSuccessOpen(true);
+        setSubmitting(false);
+      }
     } catch (err: any) {
-      console.error('EmailJS failed:', err);
-      setError('Failed to send receipt. Please try again or inform staff.');
-    } finally {
+      console.error('Checkout error:', err);
+      setError(err.message || 'Failed to process order. Please try again or inform staff.');
       setSubmitting(false);
     }
   };
@@ -144,6 +169,161 @@ const CartPage: React.FC<CartPageProps> = ({
   const handlePhoneChange = (value: string) => {
     const digits = value.replace(/\D/g, '').slice(0, 10);
     setCustomer((prev) => ({ ...prev, phone: digits }));
+  };
+
+  // Load Razorpay script
+  useEffect(() => {
+    if (paymentMethod === 'upi' && RAZORPAY_KEY_ID) {
+      // Check if script already exists
+      if (document.querySelector('script[src="https://checkout.razorpay.com/v1/checkout.js"]')) {
+        return;
+      }
+      
+      const script = document.createElement('script');
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      script.async = true;
+      document.body.appendChild(script);
+      
+      return () => {
+        const existingScript = document.querySelector('script[src="https://checkout.razorpay.com/v1/checkout.js"]');
+        if (existingScript) {
+          document.body.removeChild(existingScript);
+        }
+      };
+    }
+  }, [paymentMethod, RAZORPAY_KEY_ID]);
+
+  // Handle Razorpay payment
+  const handleRazorpayPayment = async (orderData: any) => {
+    if (!RAZORPAY_KEY_ID) {
+      setError('Payment service unavailable. Please use Pay at Counter option.');
+      setSubmitting(false);
+      return;
+    }
+
+    try {
+      // Create Razorpay order
+      const response = await fetch('http://localhost:5000/api/payments/create-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amount: orderData.total,
+          currency: 'INR',
+          customer: orderData.customer
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to create payment order');
+      }
+
+      const razorpayOrder = await response.json();
+
+      // Initialize Razorpay checkout
+      const options = {
+        key: RAZORPAY_KEY_ID,
+        amount: razorpayOrder.amount,
+        currency: razorpayOrder.currency,
+        name: 'Rabuste Cafe',
+        description: 'Order Payment',
+        order_id: razorpayOrder.id,
+        method: {
+          upi: true,
+          card: true,
+          netbanking: true,
+          wallet: true
+        },
+        handler: async function (response: any) {
+          try {
+            console.log('[PAYMENT] Razorpay payment success, verifying...');
+            
+            // Verify payment
+            const verifyResponse = await fetch('http://localhost:5000/api/payments/verify-payment', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+                orderData: orderData
+              })
+            });
+
+            if (!verifyResponse.ok) {
+              const errorData = await verifyResponse.json();
+              throw new Error(errorData.error || 'Payment verification failed');
+            }
+
+            const verifyResult = await verifyResponse.json();
+            console.log('[PAYMENT] Payment verified and order saved:', verifyResult);
+
+            // Payment verified and order saved - now try to send email (non-blocking)
+            try {
+              const itemsHTML = generateEmailHTML(orderData.items);
+              await emailjs.send(
+                EMAILJS_SERVICE_ID,
+                EMAILJS_TEMPLATE_ID,
+                {
+                  to_name: orderData.customer.name,
+                  to_email: orderData.customer.email,
+                  order_id: orderData.id,
+                  message: itemsHTML,
+                  total_price: orderData.total.toFixed(0),
+                  pickup_time: orderData.pickupTime,
+                },
+                EMAILJS_PUBLIC_KEY
+              );
+              console.log('[PAYMENT] Email receipt sent successfully');
+            } catch (emailError) {
+              // Email failed but payment succeeded - log it but don't fail the flow
+              console.warn('[PAYMENT] Email sending failed (payment succeeded):', emailError);
+            }
+
+            // Success: clear cart and show success UI
+            onClearCart();
+            setCheckoutOpen(false);
+            setSuccessOpen(true);
+            setSubmitting(false);
+          } catch (err: any) {
+            console.error('[PAYMENT] Payment verification error:', err);
+            setError(err.message || 'Payment verification failed. Please contact support.');
+            setSubmitting(false);
+          }
+        },
+        prefill: {
+          name: orderData.customer.name,
+          email: orderData.customer.email,
+          contact: orderData.customer.phone
+        },
+        theme: {
+          color: '#0a0a0a'
+        },
+        modal: {
+          ondismiss: function() {
+            setSubmitting(false);
+            setError('Payment cancelled');
+          }
+        }
+      };
+
+      const razorpay = (window as any).Razorpay;
+      if (!razorpay) {
+        throw new Error('Razorpay SDK not loaded');
+      }
+
+      const razorpayInstance = new razorpay(options);
+      razorpayInstance.on('payment.failed', function (response: any) {
+        setError('Payment failed. Please try again or use Pay at Counter option.');
+        setSubmitting(false);
+      });
+
+      razorpayInstance.open();
+    } catch (err: any) {
+      console.error('Razorpay payment error:', err);
+      setError(err.message || 'Failed to initiate payment. Please try again.');
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -278,7 +458,7 @@ const CartPage: React.FC<CartPageProps> = ({
               </button>
 
               <p className="text-[10px] text-zinc-500 font-sans mt-2">
-                Taxes and final totals are estimated. Payment handled at the counter.
+                Taxes and final totals are estimated. Choose payment method at checkout.
               </p>
             </div>
           </div>
@@ -295,10 +475,50 @@ const CartPage: React.FC<CartPageProps> = ({
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
               className="w-full max-w-md mx-4 bg-white rounded-xl border border-black/10 shadow-xl p-6 md:p-8"
             >
-              <h2 className="text-2xl font-serif mb-4">Pay at Counter</h2>
-              <p className="text-xs text-zinc-500 font-sans mb-6">
-                Reserve your order now. A receipt will be emailed to you. Please pay at the counter when ready.
-              </p>
+              <h2 className="text-2xl font-serif mb-4">Checkout</h2>
+              
+              {/* Payment Method Selection */}
+              <div className="mb-6">
+                <label className="block text-[11px] uppercase tracking-[0.25em] mb-3">Payment Method</label>
+                <div className="space-y-2">
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="paymentMethod"
+                      value="counter"
+                      checked={paymentMethod === 'counter'}
+                      onChange={(e) => setPaymentMethod(e.target.value as 'counter' | 'upi')}
+                      className="w-4 h-4 text-[#0a0a0a] border-black/20 focus:ring-[#0a0a0a]"
+                    />
+                    <span className="text-sm">Pay at Counter</span>
+                  </label>
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="paymentMethod"
+                      value="upi"
+                      checked={paymentMethod === 'upi'}
+                      onChange={(e) => setPaymentMethod(e.target.value as 'counter' | 'upi')}
+                      className="w-4 h-4 text-[#0a0a0a] border-black/20 focus:ring-[#0a0a0a]"
+                      disabled={!RAZORPAY_KEY_ID}
+                    />
+                    <span className="text-sm">
+                      Pay by UPI
+                      {!RAZORPAY_KEY_ID && <span className="text-xs text-zinc-400 ml-2">(Unavailable)</span>}
+                    </span>
+                  </label>
+                </div>
+                {paymentMethod === 'counter' && (
+                  <p className="text-xs text-zinc-500 font-sans mt-3">
+                    Reserve your order now. A receipt will be emailed to you. Please pay at the counter when ready.
+                  </p>
+                )}
+                {paymentMethod === 'upi' && (
+                  <p className="text-xs text-zinc-500 font-sans mt-3">
+                    Complete payment via UPI. Your order will be confirmed after successful payment.
+                  </p>
+                )}
+              </div>
 
               <form onSubmit={handleCheckoutSubmit} className="space-y-5 font-sans text-sm">
                 <div>
@@ -354,6 +574,7 @@ const CartPage: React.FC<CartPageProps> = ({
                     onClick={() => {
                       setCheckoutOpen(false);
                       setError(null);
+                      setPaymentMethod('counter');
                     }}
                     disabled={submitting}
                     className="px-4 py-2 text-zinc-500 hover:text-black"
@@ -365,7 +586,9 @@ const CartPage: React.FC<CartPageProps> = ({
                     disabled={submitting}
                     className="px-6 py-2 bg-[#0a0a0a] text-[#F9F8F4] rounded-full hover:bg-black disabled:opacity-60"
                   >
-                    {submitting ? 'Placing Order...' : 'Confirm Order'}
+                    {submitting 
+                      ? (paymentMethod === 'upi' ? 'Processing Payment...' : 'Placing Order...') 
+                      : (paymentMethod === 'upi' ? 'Pay with UPI' : 'Confirm Order')}
                   </button>
                 </div>
               </form>
@@ -386,11 +609,13 @@ const CartPage: React.FC<CartPageProps> = ({
               <h2 className="text-2xl font-serif mb-3">Order Placed Successfully</h2>
               <p className="text-sm text-zinc-600 font-sans mb-8">
                 Your receipt has been sent to your email.<br />
-                Please proceed to the counter for payment.
+                {paymentMethod === 'counter' && 'Please proceed to the counter for payment.'}
+                {paymentMethod === 'upi' && 'Your payment has been processed successfully.'}
               </p>
               <button
                 onClick={() => {
                   setSuccessOpen(false);
+                  setPaymentMethod('counter');
                   onBackToHome();
                 }}
                 className="px-8 py-3 bg-[#0a0a0a] text-[#F9F8F4] text-[10px] uppercase tracking-[0.3em] font-sans rounded-full hover:bg-black"
