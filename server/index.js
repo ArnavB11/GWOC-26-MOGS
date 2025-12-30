@@ -2,6 +2,8 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import multer from 'multer';
+import Razorpay from 'razorpay';
+import crypto from 'crypto';
 import { db, initDb } from './db.js';
 import { initializeKnowledge, rebuildKnowledgeIndex, getFuseKnowledge } from './data/knowledgeManager.js';
 
@@ -12,7 +14,104 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-dotenv.config({ path: path.join(__dirname, '../.env') });
+// Safely load .env file - try multiple paths
+const possiblePaths = [
+    path.join(__dirname, '../.env'),           // Relative to server directory
+    path.resolve(process.cwd(), '.env'),       // Current working directory
+    path.join(process.cwd(), '.env')           // Alternative cwd path
+];
+
+let envLoaded = false;
+for (const envPath of possiblePaths) {
+    const envPathAbsolute = path.resolve(envPath);
+    if (fs.existsSync(envPath)) {
+        console.log('🔍 Found .env file at:', envPathAbsolute);
+        
+        // Read file to check for errors
+        const fileContent = fs.readFileSync(envPath, 'utf8');
+        const hasRazorpayKeyId = fileContent.includes('RAZORPAY_KEY_ID');
+        const hasRazorpaySecret = fileContent.includes('RAZORPAY_KEY_SECRET');
+        const allLines = fileContent.split('\n');
+        const nonEmptyLines = allLines.filter(line => line.trim().length > 0);
+        
+        // Check if file is empty or has no content
+        if (fileContent.trim().length === 0) {
+            console.error('❌ ERROR: .env file is EMPTY!');
+            console.error('   File location:', envPathAbsolute);
+            console.error('   Please add the following to your .env file:');
+            console.error('   RAZORPAY_KEY_ID=your_key_id_here');
+            console.error('   RAZORPAY_KEY_SECRET=your_secret_here');
+            console.error('   VITE_RAZORPAY_KEY_ID=your_key_id_here');
+            console.error('   (No spaces around the = sign, no quotes needed)');
+        } else if (!hasRazorpayKeyId || !hasRazorpaySecret) {
+            console.error('❌ ERROR: Razorpay variables not found in .env file!');
+            console.error('   File location:', envPathAbsolute);
+            console.error('   File size:', fileContent.length, 'bytes');
+            console.error('   Non-empty lines:', nonEmptyLines.length);
+            if (nonEmptyLines.length > 0) {
+                console.error('   First few lines in file:');
+                nonEmptyLines.slice(0, 3).forEach((line, idx) => {
+                    console.error(`     ${idx + 1}. ${line.trim().substring(0, 60)}`);
+                });
+            }
+            console.error('   Required variables:');
+            console.error('   - RAZORPAY_KEY_ID');
+            console.error('   - RAZORPAY_KEY_SECRET');
+            console.error('   - VITE_RAZORPAY_KEY_ID');
+        }
+        
+        const result = dotenv.config({ path: envPath });
+        
+        if (result.error) {
+            console.error('❌ Error loading .env file:', result.error);
+        } else {
+            console.log('✅ .env file loaded successfully from:', envPathAbsolute);
+            envLoaded = true;
+            break;
+        }
+    }
+}
+
+if (!envLoaded) {
+    console.warn('⚠️  .env file not found in any of these locations:');
+    possiblePaths.forEach(p => console.warn('   -', path.resolve(p)));
+    // Try loading from current working directory as final fallback
+    dotenv.config();
+    console.log('🔄 Attempted to load .env from current working directory');
+}
+
+// Initialize Razorpay with safe error handling
+let razorpayInstance = null;
+// Trim whitespace from environment variables and remove quotes if present
+const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID?.trim().replace(/^["']|["']$/g, '') || null;
+const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET?.trim().replace(/^["']|["']$/g, '') || null;
+
+// Debug: Log what we found (without exposing secrets)
+console.log('🔍 Environment variables check:');
+console.log('   RAZORPAY_KEY_ID:', RAZORPAY_KEY_ID ? `✅ Found (${RAZORPAY_KEY_ID.length} chars)` : '❌ Missing');
+console.log('   RAZORPAY_KEY_SECRET:', RAZORPAY_KEY_SECRET ? `✅ Found (${RAZORPAY_KEY_SECRET.length} chars)` : '❌ Missing');
+
+// List all RAZORPAY related env vars for debugging
+const razorpayVars = Object.keys(process.env).filter(key => key.includes('RAZORPAY'));
+if (razorpayVars.length > 0) {
+    console.log('   Found Razorpay env vars:', razorpayVars.join(', '));
+} else {
+    console.log('   ⚠️  No RAZORPAY environment variables found in process.env');
+}
+
+if (RAZORPAY_KEY_ID && RAZORPAY_KEY_SECRET) {
+    try {
+        razorpayInstance = new Razorpay({
+            key_id: RAZORPAY_KEY_ID,
+            key_secret: RAZORPAY_KEY_SECRET
+        });
+        console.log('✅ Razorpay initialized successfully');
+    } catch (error) {
+        console.error('❌ Failed to initialize Razorpay:', error.message);
+    }
+} else {
+    console.warn('⚠️  Razorpay credentials not found. UPI payment will not be available.');
+}
 
 const app = express();
 const PORT = 5000;
@@ -180,12 +279,182 @@ app.get('/api/orders', (req, res) => {
     });
 });
 app.post('/api/orders', (req, res) => {
-    const { id, customer, items, total, date, pickupTime } = req.body;
-    db.run("INSERT INTO orders (id, customer, items, total, date, pickupTime) VALUES (?,?,?,?,?,?)",
-        [id, JSON.stringify(customer), JSON.stringify(items), total, date, pickupTime], (err) => {
-            if (err) return res.status(500).json({ error: err.message });
-            res.json(req.body);
+    console.log('[ORDER CREATE] Request received:', {
+        hasId: !!req.body.id,
+        hasCustomer: !!req.body.customer,
+        hasItems: !!req.body.items,
+        hasTotal: req.body.total !== undefined,
+        hasPickupTime: !!req.body.pickupTime,
+        paymentMethod: req.body.paymentMethod
+    });
+    try {
+        const { id, customer, items, total, date, pickupTime, paymentMethod } = req.body;
+
+        // Validation
+        if (!id || !customer || !items || total === undefined || !pickupTime) {
+            return res.status(400).json({ 
+                error: 'Missing required fields',
+                details: 'Required: id, customer, items, total, pickupTime'
+            });
+        }
+
+        // Validate customer object
+        if (!customer.name || !customer.phone || !customer.email) {
+            return res.status(400).json({ 
+                error: 'Invalid customer data',
+                details: 'Customer must have name, phone, and email'
+            });
+        }
+
+        // Validate items array
+        if (!Array.isArray(items) || items.length === 0) {
+            return res.status(400).json({ 
+                error: 'Invalid items data',
+                details: 'Items must be a non-empty array'
+            });
+        }
+
+        // Pay at Counter flow - no Razorpay, direct insert
+        // Normalize payment method: 'counter' -> 'COUNTER', 'upi' -> 'UPI'
+        const normalizedPaymentMethod = paymentMethod ? (paymentMethod.toLowerCase() === 'counter' ? 'COUNTER' : paymentMethod.toUpperCase()) : 'COUNTER';
+        const payment_status = 'PENDING_PAYMENT';
+        
+        const customerJson = JSON.stringify(customer);
+        const itemsJson = JSON.stringify(items);
+        const orderDate = date || new Date().toISOString();
+        
+        // Insert order with all columns: include payment_status, payment_method, and NULL payment IDs for counter orders
+        const sqlQuery = "INSERT INTO orders (id, customer, items, total, date, pickupTime, payment_status, payment_method, razorpay_order_id, razorpay_payment_id) VALUES (?,?,?,?,?,?,?,?,?,?)";
+        const sqlParams = [id, customerJson, itemsJson, total, orderDate, pickupTime, payment_status, normalizedPaymentMethod, null, null];
+
+        db.run(sqlQuery, sqlParams, (err) => {
+            if (err) {
+                console.error('Order save error:', err);
+                console.error('SQL Query:', sqlQuery);
+                console.error('SQL Params:', sqlParams);
+                return res.status(500).json({ 
+                    error: 'Failed to save order',
+                    details: err.message 
+                });
+            }
+            console.log('Order saved successfully:', id);
+            res.status(200).json(req.body);
         });
+    } catch (error) {
+        console.error('Unexpected error in order creation:', error);
+        return res.status(500).json({
+            error: 'Unexpected server error',
+            details: error.message
+        });
+    }
+});
+
+// -----------------------------------------------------
+// RAZORPAY PAYMENT ENDPOINTS
+// -----------------------------------------------------
+
+// Create Razorpay order
+app.post('/api/payments/create-order', async (req, res) => {
+    if (!razorpayInstance) {
+        return res.status(503).json({ error: 'Payment service unavailable. Razorpay not configured.' });
+    }
+
+    const { amount, currency = 'INR', customer } = req.body;
+
+    if (!amount || amount <= 0) {
+        return res.status(400).json({ error: 'Invalid amount' });
+    }
+
+    try {
+        const options = {
+            amount: Math.round(amount * 100), // Convert to paise
+            currency: currency,
+            receipt: `order_${Date.now()}`,
+            notes: {
+                customer_name: customer?.name || '',
+                customer_email: customer?.email || '',
+                customer_phone: customer?.phone || ''
+            }
+        };
+
+        const order = await razorpayInstance.orders.create(options);
+        
+        res.json({
+            id: order.id,
+            amount: order.amount,
+            currency: order.currency,
+            key_id: RAZORPAY_KEY_ID
+        });
+    } catch (error) {
+        console.error('Razorpay order creation error:', error);
+        res.status(500).json({ 
+            error: 'Failed to create payment order',
+            details: error.message 
+        });
+    }
+});
+
+// Verify payment signature
+app.post('/api/payments/verify-payment', async (req, res) => {
+    if (!razorpayInstance) {
+        return res.status(503).json({ error: 'Payment service unavailable. Razorpay not configured.' });
+    }
+
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, orderData } = req.body;
+
+    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+        return res.status(400).json({ error: 'Missing payment verification data' });
+    }
+
+    try {
+        // Verify signature
+        const text = `${razorpay_order_id}|${razorpay_payment_id}`;
+        const generated_signature = crypto
+            .createHmac('sha256', RAZORPAY_KEY_SECRET)
+            .update(text)
+            .digest('hex');
+
+        if (generated_signature !== razorpay_signature) {
+            return res.status(401).json({ error: 'Payment verification failed. Invalid signature.' });
+        }
+
+        // Payment verified successfully
+        console.log('[PAYMENT] Payment verified:', {
+            order_id: razorpay_order_id,
+            payment_id: razorpay_payment_id
+        });
+
+        // Create order in database
+        if (orderData) {
+            const { id, customer, items, total, date, pickupTime } = orderData;
+            db.run("INSERT INTO orders (id, customer, items, total, date, pickupTime, payment_status, payment_method, razorpay_order_id, razorpay_payment_id) VALUES (?,?,?,?,?,?,?,?,?,?)",
+                [id, JSON.stringify(customer), JSON.stringify(items), total, date, pickupTime, 'PAID', 'CARD', razorpay_order_id, razorpay_payment_id], (err) => {
+                    if (err) {
+                        console.error('[PAYMENT] Order save error after payment:', err);
+                        return res.status(500).json({ error: 'Payment verified but failed to save order', details: err.message });
+                    }
+                    console.log('[PAYMENT] Order saved:', id);
+                    res.json({ 
+                        success: true, 
+                        message: 'Payment verified and order created',
+                        order: orderData,
+                        payment_id: razorpay_payment_id
+                    });
+                });
+        } else {
+            res.json({ 
+                success: true, 
+                message: 'Payment verified successfully',
+                payment_id: razorpay_payment_id
+            });
+        }
+    } catch (error) {
+        console.error('Payment verification error:', error);
+        res.status(500).json({ 
+            error: 'Payment verification failed',
+            details: error.message 
+        });
+    }
 });
 
 

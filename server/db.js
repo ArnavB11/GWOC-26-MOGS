@@ -165,7 +165,11 @@ export function initDb() {
         items TEXT NOT NULL,
         total INTEGER NOT NULL,
         date TEXT,
-        pickupTime TEXT
+        pickupTime TEXT,
+        payment_status TEXT,
+        payment_method TEXT,
+        razorpay_order_id TEXT,
+        razorpay_payment_id TEXT
       )`);
 
             // MIGRATION: Attempt to add stock column if it doesn't exist
@@ -174,6 +178,28 @@ export function initDb() {
                 if (err && !err.message.includes("duplicate column name")) {
                     // Log other errors but don't crash, though it might be relevant
                     console.log("Migration check (stock column):", err.message);
+                }
+            });
+
+            // MIGRATION: Add payment columns if they don't exist
+            db.run("ALTER TABLE orders ADD COLUMN payment_status TEXT", (err) => {
+                if (err && !err.message.includes("duplicate column name")) {
+                    console.log("Migration check (payment_status column):", err.message);
+                }
+            });
+            db.run("ALTER TABLE orders ADD COLUMN payment_method TEXT", (err) => {
+                if (err && !err.message.includes("duplicate column name")) {
+                    console.log("Migration check (payment_method column):", err.message);
+                }
+            });
+            db.run("ALTER TABLE orders ADD COLUMN razorpay_order_id TEXT", (err) => {
+                if (err && !err.message.includes("duplicate column name")) {
+                    console.log("Migration check (razorpay_order_id column):", err.message);
+                }
+            });
+            db.run("ALTER TABLE orders ADD COLUMN razorpay_payment_id TEXT", (err) => {
+                if (err && !err.message.includes("duplicate column name")) {
+                    console.log("Migration check (razorpay_payment_id column):", err.message);
                 }
             });
 

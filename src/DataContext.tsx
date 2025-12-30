@@ -231,7 +231,7 @@ interface DataContextValue {
   addWorkshop: (item: WorkshopAdminItem) => void;
   updateWorkshop: (id: string, updates: Partial<WorkshopAdminItem>) => void;
   deleteWorkshop: (id: string) => void;
-  placeOrder: (customer: OrderCustomer, items: CartItem[], total: number, pickupTime: string) => Order;
+  placeOrder: (customer: OrderCustomer, items: CartItem[], total: number, pickupTime: string) => Promise<Order>;
 }
 
 const DataContext = createContext<DataContextValue | undefined>(undefined);
@@ -380,7 +380,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
 
   // --- ORDER ACTIONS ---
-  const placeOrder = (customer: OrderCustomer, items: CartItem[], total: number, pickupTime: string) => {
+  const placeOrder = async (customer: OrderCustomer, items: CartItem[], total: number, pickupTime: string, paymentMethod: string = 'counter'): Promise<Order> => {
     const newOrder: Order = {
       id: Date.now().toString(),
       customer,
@@ -390,17 +390,63 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       pickupTime,
     };
 
+    console.log('[FRONTEND] placeOrder called with:', {
+      customer,
+      itemsCount: items.length,
+      total,
+      pickupTime,
+      orderId: newOrder.id,
+      paymentMethod
+    });
+    console.log('[FRONTEND] Full order object:', JSON.stringify(newOrder, null, 2));
+
     // Optimistic update
     setOrders(prev => [newOrder, ...prev]);
 
-    // Async save
-    fetch('http://localhost:5000/api/orders', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(newOrder)
-    }).catch(err => console.error("Order save failed", err));
+    // Save to backend - throw error if it fails
+    try {
+      console.log('[FRONTEND] Sending POST to http://localhost:5000/api/orders');
+      const response = await fetch('http://localhost:5000/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...newOrder, paymentMethod })
+      });
+      
+      console.log('[FRONTEND] Response received:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok
+      });
 
-    return newOrder;
+      if (!response.ok) {
+        console.error('[FRONTEND] Response not OK, status:', response.status);
+        let errorMessage = 'Failed to save order to server';
+        try {
+          const errorData = await response.json();
+          console.error('[FRONTEND] Error data from server:', errorData);
+          errorMessage = errorData.error || errorData.details || errorMessage;
+        } catch (parseError) {
+          console.error('[FRONTEND] Failed to parse error response:', parseError);
+          errorMessage = `Server error: ${response.status} ${response.statusText}`;
+        }
+        throw new Error(errorMessage);
+      }
+
+      const savedOrder = await response.json();
+      console.log('[FRONTEND] Order saved successfully:', savedOrder.id);
+      return savedOrder;
+    } catch (error: any) {
+      console.error('[FRONTEND] Error in placeOrder:', {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+      });
+      // Re-throw with more context if it's not already an Error
+      if (error instanceof Error) {
+        throw error;
+      }
+      throw new Error(error.message || 'Network error: Failed to connect to server');
+    }
   };
 
   return (
