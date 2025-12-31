@@ -23,6 +23,16 @@ import { motion as motionBase, AnimatePresence } from 'framer-motion';
 import { DataProvider } from './DataContext';
 
 import ChatWidget from './components/ChatWidget';
+import QuoteSection from './components/QuoteSection';
+import ScrollProgress from './components/ScrollProgress';
+import MarqueeSection from './components/MarqueeSection';
+import StatsSection from './components/StatsSection';
+import ProcessGrid from './components/ProcessGrid';
+import SignatureShowcase from './components/SignatureShowcase';
+import ManifestoSection from './components/ManifestoSection';
+import BrewGuideSection from './components/BrewGuideSection';
+import OriginMapSection from './components/OriginMapSection';
+import JoinTheCultSection from './components/JoinTheCultSection';
 
 
 // Fix for framer-motion type mismatch in the current environment
@@ -143,9 +153,12 @@ const App: React.FC = () => {
 
   const cartCount = cart.reduce((acc, item) => acc + item.quantity, 0);
 
+  // ...
+
   return (
     <DataProvider>
       <div className="min-h-screen font-sans bg-[#F9F8F4] text-[#1A1A1A]">
+        <ScrollProgress />
         <Header onNavigate={navigateTo} currentPage={currentPage} cartCount={cartCount} />
 
         <AnimatePresence mode="wait">
@@ -159,9 +172,18 @@ const App: React.FC = () => {
             {currentPage === Page.HOME && (
               <>
                 <Hero />
+                <QuoteSection />
+                <MarqueeSection />
                 <StickySection />
+                <ManifestoSection />
+                <OriginMapSection />
+                <StatsSection />
+                <SignatureShowcase />
+                <BrewGuideSection />
+                <ProcessGrid />
                 <GalleryTeaser onNavigate={() => navigateTo(Page.ART)} />
                 <MenuPreview onAddToCart={addToCart} onGoToMenu={() => navigateTo(Page.MENU)} />
+                <JoinTheCultSection />
                 <Reviews />
               </>
             )}

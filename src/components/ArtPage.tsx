@@ -12,6 +12,10 @@ interface ArtPageProps {
   onAddToCart: (item: CoffeeItem) => void;
 }
 
+import ParallaxHero from './ParallaxHero';
+
+// ...
+
 const ArtPage: React.FC<ArtPageProps> = ({ onAddToCart }) => {
   const { artItems } = useDataContext();
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -50,35 +54,47 @@ const ArtPage: React.FC<ArtPageProps> = ({ onAddToCart }) => {
   };
 
   return (
-    <div className="pt-24 md:pt-32 pb-40 px-6 md:px-8 bg-[#F9F8F4]">
-      <div className="max-w-7xl mx-auto">
-        <header className="mb-20 md:mb-32 flex flex-col md:flex-row justify-between items-end gap-6 md:gap-10">
-          <div>
-            <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-[9px] md:text-[10px] uppercase tracking-[0.4em] md:tracking-[0.5em] text-zinc-400 mb-4 md:mb-6">The Micro Gallery</motion.p>
-            <motion.h1 initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} className="text-5xl md:text-9xl font-serif italic tracking-tighter leading-none">The Canvas.</motion.h1>
-          </div>
-          <p className="max-w-xs text-[10px] md:text-xs font-sans text-zinc-400 uppercase tracking-widest leading-relaxed text-right italic">
+    <div className="min-h-screen bg-[#F9F8F4] pb-40">
+      <ParallaxHero
+        title="The Canvas."
+        subtitle="The Micro Gallery"
+        height="50vh"
+      />
+
+      <div className="max-w-7xl mx-auto px-6 md:px-8 mt-20 md:mt-32">
+        <header className="mb-16 md:mb-24 flex flex-col items-center text-center">
+          <p className="max-w-md text-[10px] md:text-xs font-sans text-zinc-400 uppercase tracking-widest leading-relaxed italic">
             "A curated sanctuary for the emerging. Every piece is selected to mirror the intensity of our brew."
           </p>
         </header>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12 md:gap-16">
           {artItems.map((art, idx) => {
             const isAvailable = art.stock > 0;
             return (
               <motion.div
                 key={art.id}
                 initial={{ opacity: 0, y: 40 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: idx * 0.1 }}
-                className="group cursor-pointer"
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: "-50px" }}
+                transition={{ delay: idx * 0.1, duration: 0.6 }}
+                whileHover={{
+                  y: -10,
+                  scale: 1.02,
+                  rotateX: 2,
+                  rotateY: 2,
+                  boxShadow: "0px 20px 40px rgba(0,0,0,0.1)"
+                }}
+                className="group cursor-default perspective-1000"
               >
-                <div className="aspect-[3/4] overflow-hidden mb-8 relative bg-zinc-100">
+                {/* ... (keep card content same, maybe refine padding) ... */}
+                <div className="aspect-[3/4] overflow-hidden mb-6 relative bg-zinc-100 shadow-sm transition-shadow duration-500 group-hover:shadow-2xl">
                   <img
                     src={art.image}
-                    className={`w-full h-full object-cover transition-all duration-1000 ${isAvailable ? 'grayscale-0' : 'grayscale'}`}
+                    className={`w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110 ${isAvailable ? 'grayscale-0' : 'grayscale'}`}
                     alt={art.title}
                   />
+                  {/* ... tags ... */}
                   <div className="absolute top-4 left-4 flex space-x-2">
                     <div className={`px-3 py-1 text-[8px] font-sans uppercase tracking-[0.2em] font-bold backdrop-blur-md ${isAvailable ? 'bg-white/90 text-black border border-black/5' : 'bg-red-500/90 text-white'}`}>
                       {isAvailable ? 'Available' : 'Sold Out'}
@@ -86,23 +102,18 @@ const ArtPage: React.FC<ArtPageProps> = ({ onAddToCart }) => {
                   </div>
                 </div>
 
-                <div className="flex justify-between items-start mb-6">
-                  <div>
-                    <h3 className="text-3xl font-serif italic mb-2">{art.title}</h3>
-                    <p className="text-[10px] font-sans text-zinc-400 uppercase tracking-widest">{art.artist}</p>
-                    {isAvailable && (
-                      <p className="text-[9px] font-sans text-emerald-600 mt-2 uppercase tracking-wide">
-                        {art.stock} piece{art.stock > 1 ? 's' : ''} remaining
-                      </p>
-                    )}
+                <div className="space-y-3 mb-6">
+                  <h3 className="text-2xl md:text-3xl font-serif italic">{art.title}</h3>
+                  <div className="flex justify-between items-center text-[10px] font-sans uppercase tracking-widest text-zinc-500">
+                    <span>{art.artist}</span>
+                    <span className="font-bold text-black border-b border-black">₹{art.price.toLocaleString()}</span>
                   </div>
-                  <span className="text-sm font-sans font-bold">₹{art.price.toLocaleString()}</span>
                 </div>
 
                 {isAvailable && (
                   <button
                     onClick={() => handleAddToCart(art)}
-                    className="w-full py-4 border border-black/10 group-hover:bg-black group-hover:text-white group-hover:border-black transition-all text-[10px] uppercase tracking-[0.3em] font-bold flex items-center justify-center space-x-3"
+                    className="w-full py-4 bg-white border border-black/10 hover:bg-black hover:text-white transition-all text-[10px] uppercase tracking-[0.3em] font-bold flex items-center justify-center space-x-3 cursor-pointer"
                   >
                     <ShoppingCart className="w-4 h-4" />
                     <span>Add to Collection</span>
@@ -114,6 +125,7 @@ const ArtPage: React.FC<ArtPageProps> = ({ onAddToCart }) => {
         </div>
       </div>
 
+      {/* ... toast ... */}
       <AnimatePresence>
         {toastMessage && (
           <motion.div

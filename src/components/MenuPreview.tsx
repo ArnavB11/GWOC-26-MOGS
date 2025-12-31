@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { motion as motionBase } from 'framer-motion';
 import { CoffeeItem } from '../types';
@@ -12,9 +11,36 @@ interface MenuPreviewProps {
 }
 
 const items: CoffeeItem[] = [
-  { id: '1', name: "Midnight Roast", notes: "Dark Chocolate & Smoke", caffeine: "Extreme", intensity: 9, price: 22, image: "https://images.unsplash.com/photo-1559056199-641a0ac8b55e?auto=format&fit=crop&q=80&w=1974", description: "Our flagship dark roast." },
-  { id: '2', name: "Gallery Blend", notes: "Berry & Walnut", caffeine: "High", intensity: 7, price: 20, image: "https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?auto=format&fit=crop&q=80&w=1974", description: "Balanced and artistic." },
-  { id: '3', name: "Obsidian No. 7", notes: "Molasses & Earth", caffeine: "Very High", intensity: 10, price: 24, image: "https://images.unsplash.com/photo-1497933321188-941f9ad36b12?auto=format&fit=crop&q=80&w=2069", description: "Intense robusta concentrate." },
+  {
+    id: 'robusta-cold-milk-vietnamese',
+    name: "The Vietnamese",
+    notes: "Condensed Milk & Robusta",
+    caffeine: "High",
+    intensity: 8,
+    price: 240,
+    image: "https://images.unsplash.com/photo-1559056199-641a0ac8b55e?auto=format&fit=crop&q=80&w=1974",
+    description: "Our signature condensed milk brew."
+  },
+  {
+    id: 'manual-brew-classic-cold-brew',
+    name: "Classic Cold Brew",
+    notes: "18 Hour Extraction",
+    caffeine: "Very High",
+    intensity: 7,
+    price: 220,
+    image: "https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?auto=format&fit=crop&q=80&w=1974",
+    description: "Smooth, chocolatey, and potent."
+  },
+  {
+    id: 'robusta-cold-milk-iced-latte',
+    name: "Iced Latte",
+    notes: "Creamy & Bold",
+    caffeine: "Medium",
+    intensity: 6,
+    price: 220,
+    image: "https://images.unsplash.com/photo-1497933321188-941f9ad36b12?auto=format&fit=crop&q=80&w=2069",
+    description: "The classic daily driver."
+  },
 ];
 
 const MenuPreview: React.FC<MenuPreviewProps> = ({ onAddToCart, onGoToMenu }) => {
@@ -52,17 +78,24 @@ const MenuPreview: React.FC<MenuPreviewProps> = ({ onAddToCart, onGoToMenu }) =>
           </button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-px bg-zinc-800/50 border border-zinc-800/50">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 bg-transparent">
           {items.map((item, idx) => (
             <motion.div
-              key={idx}
-              initial={{ opacity: 0, y: 50 }}
+              key={item.id}
+              initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              transition={{ delay: idx * 0.15 }}
-              className="bg-[#111] p-12 group"
+              transition={{ delay: idx * 0.1 }}
+              whileHover={{
+                y: -10,
+                rotateY: 5,
+                rotateX: -5,
+                scale: 1.02,
+                transition: { type: "spring", stiffness: 300 }
+              }}
+              className="bg-[#F9F8F4] p-6 md:p-8 border border-black/5 hover:border-black/20 transition-colors shadow-sm cursor-pointer perspective-1000 flex flex-col"
             >
-              <div className="aspect-[4/5] overflow-hidden mb-12 relative">
+              <div className="aspect-[4/5] overflow-hidden mb-8 relative">
                 <img
                   src={item.image}
                   className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110"
@@ -70,20 +103,17 @@ const MenuPreview: React.FC<MenuPreviewProps> = ({ onAddToCart, onGoToMenu }) =>
                 />
               </div>
 
-              <h3 className="text-3xl font-serif mb-4 italic">{item.name}</h3>
-              <p className="text-[10px] font-sans text-zinc-500 uppercase tracking-widest mb-10">{item.notes}</p>
+              <h3 className="text-3xl font-serif mb-2 italic text-[#1A1A1A]">{item.name}</h3>
+              <p className="text-[10px] font-sans text-zinc-500 uppercase tracking-widest mb-8">{item.notes}</p>
 
-              <div className="flex justify-between items-center py-4 border-y border-zinc-800 mb-10 text-[10px] uppercase tracking-widest font-bold">
-                <span className="text-zinc-500">Payload</span>
-                <span>{item.caffeine}</span>
+              <div className="mt-auto">
+                <button
+                  onClick={() => onAddToCart(item)}
+                  className="w-full py-5 border border-black/10 hover:bg-[#1A1A1A] hover:text-white transition-all text-[11px] uppercase tracking-[0.4em] font-bold text-[#1A1A1A]"
+                >
+                  Add to Cart — ₹{item.price}
+                </button>
               </div>
-
-              <button
-                onClick={() => onAddToCart(item)}
-                className="w-full py-5 border border-zinc-800 hover:bg-white hover:text-black hover:border-white transition-all text-[11px] uppercase tracking-[0.4em] font-bold"
-              >
-                Add to Cart — ${item.price}
-              </button>
             </motion.div>
           ))}
         </div>

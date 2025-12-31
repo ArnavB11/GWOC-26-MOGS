@@ -59,7 +59,7 @@ const Hero: React.FC = () => {
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 1.2, duration: 1.2, ease: "easeOut" }}
-          className="mt-16 text-2xl md:text-3xl font-serif text-[#F9F8F4] tracking-wide"
+          className="mt-12 md:mt-16 text-3xl md:text-4xl lg:text-5xl font-serif text-[#F9F8F4] tracking-wide max-w-lg mx-auto leading-tight"
         >
           Reclaiming the Robusta Standard.
         </motion.p>

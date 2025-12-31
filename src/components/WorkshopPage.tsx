@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion as motionBase, AnimatePresence as AnimatePresenceBase } from 'framer-motion';
 import { Send, X, CheckCircle2, Loader2 } from 'lucide-react';
 import emailjs from '@emailjs/browser';
+import ParallaxHero from './ParallaxHero';
 
 // Fix for framer-motion type mismatch
 const motion = motionBase as any;
@@ -117,13 +118,20 @@ const WorkshopPage: React.FC = () => {
       });
   };
 
+  // ... imports
+
+  // ...
+
   return (
-    <div className="pt-24 md:pt-32 pb-40 px-6 md:px-8 bg-[#F9F8F4]">
-      <div className="max-w-7xl mx-auto">
-        <header className="mb-20 md:mb-32">
-          <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-[9px] md:text-[10px] uppercase tracking-[0.4em] md:tracking-[0.5em] text-zinc-400 mb-4 md:mb-6 font-sans">Education & Mastery</motion.p>
-          <motion.h1 initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} className="text-5xl md:text-9xl font-serif italic tracking-tighter leading-none text-[#1A1A1A]">Craft & Community.</motion.h1>
-        </header>
+    <div className="bg-[#F9F8F4] pb-40">
+      <ParallaxHero
+        title="Craft & Community."
+        subtitle="Education & Mastery"
+        height="50vh"
+      />
+
+      <div className="max-w-7xl mx-auto px-6 md:px-8 mt-20 md:mt-32">
+        {/* Removed duplicate header */}
 
         {/* WORKSHOPS GRID */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-40">

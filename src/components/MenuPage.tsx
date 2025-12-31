@@ -412,16 +412,15 @@ const MenuPage: React.FC<MenuPageProps> = ({ onAddToCart }) => {
         </aside>
 
         {/* Mobile Navigation (Sticky Top) */}
-        <div className="md:hidden sticky top-16 z-30 bg-[#F9F8F4]/95 backdrop-blur-sm py-4 -mx-6 px-6 border-b border-black/5 mb-4">
-          <p className="text-[9px] uppercase tracking-[0.4em] text-zinc-500 mb-2 font-sans">Menu Categories</p>
+        <div className="md:hidden sticky top-16 z-30 bg-[#F9F8F4]/95 backdrop-blur-sm py-4 -mx-6 px-6 border-b border-black/10 mb-8 shadow-sm">
           <div className="flex overflow-x-auto gap-3 pb-2 no-scrollbar snap-x">
             {filteredCategories.map(cat => (
               <button
                 key={cat.id}
                 onClick={() => handleCategoryClick(cat.id)}
-                className={`shrink-0 px-4 py-2 rounded-full text-[10px] uppercase tracking-[0.2em] font-sans border transition-colors snap-start ${activeCategoryId === cat.id
-                    ? 'bg-[#0a0a0a] text-[#F9F8F4] border-[#0a0a0a]'
-                    : 'bg-white border-black/10 text-zinc-600'
+                className={`shrink-0 px-5 py-2.5 rounded-full text-[10px] uppercase tracking-[0.2em] font-sans border transition-all snap-start shadow-sm ${activeCategoryId === cat.id
+                  ? 'bg-[#0a0a0a] text-[#F9F8F4] border-[#0a0a0a] scale-105'
+                  : 'bg-white border-black/5 text-zinc-600'
                   }`}
               >
                 {cat.group}

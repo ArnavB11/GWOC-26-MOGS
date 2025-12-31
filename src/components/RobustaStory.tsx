@@ -2,6 +2,7 @@ import React from 'react';
 import { motion as motionBase } from 'framer-motion';
 import { ArrowLeft } from 'lucide-react';
 import { Page } from '../types';
+import ParallaxHero from './ParallaxHero';
 
 const motion = motionBase as any;
 
@@ -9,33 +10,29 @@ interface RobustaStoryProps {
   onBack: (page: Page) => void;
 }
 
+
+// ...
+
 const RobustaStory: React.FC<RobustaStoryProps> = ({ onBack }) => {
   return (
-    <section className="pt-24 md:pt-32 pb-40 px-6 md:px-8 bg-[#F9F8F4] text-[#0a0a0a] min-h-screen">
-      <div className="max-w-6xl mx-auto">
+    <section className="bg-[#F9F8F4] text-[#0a0a0a] min-h-screen pb-40">
+      <ParallaxHero
+        title="The Robusta Story."
+        subtitle="The Origin"
+        image="/media/robusta-story2.jpg"
+        height="50vh"
+      />
+
+      <div className="max-w-6xl mx-auto px-6 md:px-8 mt-16 md:mt-20">
         <button
           onClick={() => onBack(Page.AWARENESS)}
-          className="mb-8 md:mb-10 inline-flex items-center space-x-3 text-[9px] md:text-[10px] uppercase tracking-[0.4em] text-zinc-400 hover:text-white transition-colors"
+          className="mb-8 md:mb-10 inline-flex items-center space-x-3 text-[9px] md:text-[10px] uppercase tracking-[0.4em] text-zinc-400 hover:text-black transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
           <span>Back to Philosophy</span>
         </button>
 
         <header className="mb-16 md:mb-20 text-left">
-          <motion.p
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-[9px] md:text-[10px] uppercase tracking-[0.4em] md:tracking-[0.5em] text-zinc-500 mb-4 font-sans"
-          >
-            The Origin
-          </motion.p>
-          <motion.h1
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-5xl md:text-7xl font-serif italic tracking-tight leading-tight mb-6 text-[#1A1A1A]"
-          >
-            The Robusta Story.
-          </motion.h1>
           <p className="text-sm md:text-base text-zinc-600 max-w-2xl leading-relaxed uppercase tracking-widest">
             Before it was misunderstood, Robusta was revered. This is the story of a bean that refused to be
             domesticated by taste trends—and why its bold character has become the backbone of our craft.

@@ -42,7 +42,7 @@ const StickySection: React.FC = () => {
               The Philosophy
             </motion.span>
 
-            <h2 className="text-6xl md:text-[8rem] font-serif mb-12 leading-[0.9] tracking-tighter text-[#1A1A1A] font-bold italic">
+            <h2 className="text-5xl md:text-[6rem] lg:text-[8rem] font-serif mb-10 md:mb-12 leading-[0.9] tracking-tighter text-[#1A1A1A] font-bold italic">
               <motion.div variants={{ hidden: { y: 50, opacity: 0 }, visible: { y: 0, opacity: 1, transition: { duration: 1 } } }}>A Choice,</motion.div>
               <motion.div variants={{ hidden: { y: 50, opacity: 0 }, visible: { y: 0, opacity: 1, transition: { duration: 1 } } }}>Not an</motion.div>
               <motion.div variants={{ hidden: { y: 50, opacity: 0 }, visible: { y: 0, opacity: 1, transition: { duration: 1 } } }}>Alternative.</motion.div>
@@ -54,7 +54,7 @@ const StickySection: React.FC = () => {
                   hidden: { opacity: 0, y: 20 },
                   visible: { opacity: 1, y: 0, transition: { duration: 0.8 } }
                 }}
-                className="text-lg font-sans leading-relaxed text-[#1A1A1A] tracking-tight"
+                className="text-base md:text-lg font-sans leading-relaxed text-[#1A1A1A] tracking-tight"
               >
                 Rabuste is built on a singular conviction: Robusta is not inferior; it is misunderstood. We exclusively brew high-grade Robusta for its bold taste, thicker crema, and double the caffeine payload of Arabica. This is coffee for the conscious, energetic, and intentional.
               </motion.p>
