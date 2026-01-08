@@ -1,6 +1,6 @@
+import './env.js'; // MUST BE FIRST
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
 import multer from 'multer';
 import Razorpay from 'razorpay';
 import crypto from 'crypto';
@@ -13,72 +13,6 @@ import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
-// Safely load .env file - try multiple paths
-const possiblePaths = [
-    path.join(__dirname, '../.env'),           // Relative to server directory
-    path.resolve(process.cwd(), '.env'),       // Current working directory
-    path.join(process.cwd(), '.env')           // Alternative cwd path
-];
-
-let envLoaded = false;
-for (const envPath of possiblePaths) {
-    const envPathAbsolute = path.resolve(envPath);
-    if (fs.existsSync(envPath)) {
-        console.log('🔍 Found .env file at:', envPathAbsolute);
-
-        // Read file to check for errors
-        const fileContent = fs.readFileSync(envPath, 'utf8');
-        const hasRazorpayKeyId = fileContent.includes('RAZORPAY_KEY_ID');
-        const hasRazorpaySecret = fileContent.includes('RAZORPAY_KEY_SECRET');
-        const allLines = fileContent.split('\n');
-        const nonEmptyLines = allLines.filter(line => line.trim().length > 0);
-
-        // Check if file is empty or has no content
-        if (fileContent.trim().length === 0) {
-            console.error('❌ ERROR: .env file is EMPTY!');
-            console.error('   File location:', envPathAbsolute);
-            console.error('   Please add the following to your .env file:');
-            console.error('   RAZORPAY_KEY_ID=your_key_id_here');
-            console.error('   RAZORPAY_KEY_SECRET=your_secret_here');
-            console.error('   VITE_RAZORPAY_KEY_ID=your_key_id_here');
-            console.error('   (No spaces around the = sign, no quotes needed)');
-        } else if (!hasRazorpayKeyId || !hasRazorpaySecret) {
-            console.error('❌ ERROR: Razorpay variables not found in .env file!');
-            console.error('   File location:', envPathAbsolute);
-            console.error('   File size:', fileContent.length, 'bytes');
-            console.error('   Non-empty lines:', nonEmptyLines.length);
-            if (nonEmptyLines.length > 0) {
-                console.error('   First few lines in file:');
-                nonEmptyLines.slice(0, 3).forEach((line, idx) => {
-                    console.error(`     ${idx + 1}. ${line.trim().substring(0, 60)}`);
-                });
-            }
-            console.error('   Required variables:');
-            console.error('   - RAZORPAY_KEY_ID');
-            console.error('   - RAZORPAY_KEY_SECRET');
-            console.error('   - VITE_RAZORPAY_KEY_ID');
-        }
-
-        const result = dotenv.config({ path: envPath });
-
-        if (result.error) {
-            console.error('❌ Error loading .env file:', result.error);
-        } else {
-            console.log('✅ .env file loaded successfully from:', envPathAbsolute);
-            envLoaded = true;
-            break;
-        }
-    }
-}
-
-if (!envLoaded) {
-    console.warn('⚠️  .env file not found in any of these locations:');
-    possiblePaths.forEach(p => console.warn('   -', path.resolve(p)));
-    // Try loading from current working directory as final fallback
-    dotenv.config();
-    console.log('🔄 Attempted to load .env from current working directory');
-}
 
 // Initialize Razorpay with safe error handling
 let razorpayInstance = null;
@@ -490,7 +424,14 @@ app.post('/api/recommendations/context', async (req, res) => {
         const { data: menuData, error: menuError } = await db.from('menu_items').select('*');
         if (menuError) throw new Error('Failed to fetch menu');
 
-        const { data: trendingData } = await db.from('trending_items_7d').select('*');
+        // Get trending items with error handling
+        const { data: trendingData, error: trendingError } = await db
+            .from('trending_items_7d')
+            .select('*');
+
+        if (trendingError) {
+            console.error('Trending query error (non-fatal):', trendingError);
+        }
         const trendingMap = new Map();
         (trendingData || []).forEach(item => trendingMap.set(item.item_id, item.total_quantity || 0));
 
