@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion as motionBase, AnimatePresence as AnimatePresenceBase } from 'framer-motion';
-import { ShoppingBag, Menu, User, X } from 'lucide-react';
+import { ShoppingBag, Menu, X } from 'lucide-react';
 import { Page } from '../types';
 
 // Fix for framer-motion type mismatch
@@ -20,6 +20,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, currentPage, cartCount }) =
     { label: 'Art Gallery', page: Page.ART },
     { label: 'Philosophy', page: Page.AWARENESS },
     { label: 'Find Store', page: Page.FIND_STORE },
+    { label: 'Track Order', page: Page.TRACK_ORDER },
     { label: 'Franchise', page: Page.FRANCHISE },
   ];
 
@@ -76,49 +77,39 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, currentPage, cartCount }) =
             </button>
           )}
 
-          {/* RIGHT SIDE ICONS */}
-          {currentPage !== Page.ADMIN && (
-            <div className={`fixed top-4 right-4 z-50 flex items-center space-x-4 md:space-x-6 pointer-events-auto ${textColorClass}`}>
-
-              {/* Portal Button */}
-              <button
-                onClick={() => handleNavigate(Page.ADMIN)}
-                className="flex items-center space-x-2 text-[10px] uppercase tracking-[0.4em] font-sans font-semibold opacity-100 hover:opacity-70 transition-opacity"
+      {/* RIGHT SIDE ICONS */}
+      {currentPage !== Page.ADMIN && (
+        <div className={`fixed top-4 right-4 z-50 flex items-center space-x-4 md:space-x-6 pointer-events-auto ${textColorClass}`}>
+          {/* Cart Button */}
+          <button 
+            onClick={() => handleNavigate(Page.CART)}
+            className="relative cursor-pointer opacity-100 hover:opacity-70 transition-opacity"
+          >
+            <ShoppingBag className="w-5 h-5" />
+            {cartCount > 0 && (
+              <motion.span 
+                initial={{ scale: 0, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                // Badge Colors Flipped for Contrast
+                className={`absolute -top-2 -right-2 text-[9px] w-4 h-4 flex items-center justify-center rounded-full font-black ${isHome ? 'bg-white text-black' : 'bg-black text-white'}`}
               >
-                <User className="w-4 h-4" />
-                <span className="hidden sm:inline">Portal</span>
-              </button>
+                {cartCount}
+              </motion.span>
+            )}
+          </button>
 
-              {/* Cart Button */}
-              <button
-                onClick={() => handleNavigate(Page.CART)}
-                className="relative cursor-pointer opacity-100 hover:opacity-70 transition-opacity"
-              >
-                <ShoppingBag className="w-5 h-5" />
-                {cartCount > 0 && (
-                  <motion.span
-                    initial={{ scale: 0, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    // Badge Colors Flipped for Contrast
-                    className={`absolute -top-2 -right-2 text-[9px] w-4 h-4 flex items-center justify-center rounded-full font-black ${isHome ? 'bg-white text-black' : 'bg-black text-white'}`}
-                  >
-                    {cartCount}
-                  </motion.span>
-                )}
-              </button>
-
-              {/* Hamburger Menu Button */}
-              <button
-                onClick={() => setMenuOpen(true)}
-                className="relative cursor-pointer hover:opacity-80 transition-opacity"
-                aria-label="Open navigation menu"
-              >
-                <span className={`inline-flex h-10 w-10 items-center justify-center rounded-full border ${menuButtonBg}`}>
-                  <Menu className="w-5 h-5" />
-                </span>
-              </button>
-            </div>
-          )}
+          {/* Hamburger Menu Button */}
+          <button
+            onClick={() => setMenuOpen(true)}
+            className="relative cursor-pointer hover:opacity-80 transition-opacity"
+            aria-label="Open navigation menu"
+          >
+            <span className={`inline-flex h-10 w-10 items-center justify-center rounded-full border ${menuButtonBg}`}>
+              <Menu className="w-5 h-5" />
+            </span>
+          </button>
+        </div>
+      )}
         </div>
       </motion.header>
 

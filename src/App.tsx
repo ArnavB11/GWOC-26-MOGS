@@ -20,6 +20,8 @@ import FranchisePage from './components/FranchisePage';
 import FindStorePage from './components/FindStorePage';
 import RobustaStory from './components/RobustaStory';
 import FAQPage from './components/FAQPage';
+import TrackOrderPage from './components/TrackOrderPage';
+import EmployeeDashboard from './components/EmployeeDashboard';
 import { motion as motionBase, AnimatePresence } from 'framer-motion';
 import { DataProvider } from './DataContext';
 
@@ -54,6 +56,10 @@ const App: React.FC = () => {
         return Page.FAQ;
       case '/admin':
         return Page.ADMIN;
+      case '/track-order':
+        return Page.TRACK_ORDER;
+      case '/employee':
+        return Page.EMPLOYEE;
       case '/franchise':
         return Page.FRANCHISE;
       default:
@@ -81,6 +87,10 @@ const App: React.FC = () => {
         return '/faq';
       case Page.ADMIN:
         return '/admin';
+      case Page.TRACK_ORDER:
+        return '/track-order';
+      case Page.EMPLOYEE:
+        return '/employee';
       case Page.FRANCHISE:
         return '/franchise';
       case Page.HOME:
@@ -228,6 +238,14 @@ const App: React.FC = () => {
                   <AdminDashboard onBack={() => navigateTo(Page.HOME)} onLogout={handleLogout} />
                 )}
               </AdminRoute>
+            )}
+
+            {currentPage === Page.TRACK_ORDER && (
+              <TrackOrderPage onNavigate={navigateTo} />
+            )}
+
+            {currentPage === Page.EMPLOYEE && (
+              <EmployeeDashboard onNavigate={navigateTo} onBack={() => navigateTo(Page.HOME)} />
             )}
           </motion.div>
         </AnimatePresence>
