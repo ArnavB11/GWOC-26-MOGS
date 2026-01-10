@@ -1,5 +1,6 @@
 
 import React, { useEffect, useMemo, useState, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { motion as motionBase } from 'framer-motion';
 import { Search, Filter, X } from 'lucide-react';
 import { CoffeeItem } from '../types';
@@ -463,8 +464,8 @@ const MenuPage: React.FC<MenuPageProps> = ({ onAddToCart }) => {
                 key={cat.id}
                 onClick={() => handleCategoryClick(cat.id)}
                 className={`shrink-0 px-4 py-2 rounded-full text-[10px] uppercase tracking-[0.2em] font-sans border transition-colors snap-start ${activeCategoryId === cat.id
-                    ? 'bg-[#0a0a0a] text-[#F9F8F4] border-[#0a0a0a]'
-                    : 'bg-white border-black/10 text-zinc-600'
+                  ? 'bg-[#0a0a0a] text-[#F9F8F4] border-[#0a0a0a]'
+                  : 'bg-white border-black/10 text-zinc-600'
                   }`}
               >
                 {cat.group}
@@ -488,7 +489,7 @@ const MenuPage: React.FC<MenuPageProps> = ({ onAddToCart }) => {
                 />
               </div>
 
-              <div className="flex flex-col items-end gap-2 text-sm font-sans md:items-center md:flex-row">
+              <div className="flex flex-col items-end gap-6 text-sm font-sans md:items-center md:flex-row md:gap-12">
                 <div className="flex items-center gap-2">
                   <Filter className="w-4 h-4 text-zinc-500" />
                   <select
@@ -504,7 +505,7 @@ const MenuPage: React.FC<MenuPageProps> = ({ onAddToCart }) => {
                 <button
                   type="button"
                   onClick={() => setShowBrewDesk(true)}
-className="px-4 py-2 rounded-full border border-black/15 text-[10px] uppercase tracking-[0.25em] text-zinc-600 bg-white/40 hover:bg-black/5 hover:text-[#0a0a0a] transition-colors"
+                  className="px-4 py-2 rounded-full border border-black/15 text-[10px] uppercase tracking-[0.25em] text-zinc-600 bg-white/40 hover:bg-black/5 hover:text-[#0a0a0a] transition-colors"
                 >
                   Help me choose
                 </button>
@@ -531,7 +532,7 @@ className="px-4 py-2 rounded-full border border-black/15 text-[10px] uppercase t
                     // Find the category group for this item
                     const canonicalCategory = item.category.trim().toUpperCase();
                     const group = canonicalCategory.split('(')[0].trim();
-                    
+
                     const cartItem: CoffeeItem = {
                       id: item.id,
                       name: item.name,
@@ -642,16 +643,18 @@ className="px-4 py-2 rounded-full border border-black/15 text-[10px] uppercase t
         </motion.div>
       )}
 
-      {showBrewDesk && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-          <div className="absolute top-6 right-6 text-white text-xs uppercase tracking-[0.25em] flex items-center gap-2 cursor-pointer" onClick={() => setShowBrewDesk(false)}>
-            <span>Close</span>
-            <X className="w-4 h-4" />
-          </div>
-          <div className="mx-4">
+      {showBrewDesk && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 font-sans">
+          <div className="absolute inset-0" onClick={() => setShowBrewDesk(false)} />
+          <div className="relative z-[10000] w-full max-w-lg">
+            <div className="absolute -top-12 right-0 text-white text-xs uppercase tracking-[0.25em] flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setShowBrewDesk(false)}>
+              <span>Close</span>
+              <X className="w-4 h-4" />
+            </div>
             <BrewDeskPopup onClose={() => setShowBrewDesk(false)} onAddToCart={onAddToCart} />
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

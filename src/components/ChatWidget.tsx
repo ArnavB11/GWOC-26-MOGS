@@ -31,7 +31,7 @@ const FormatMessage = ({ text }: { text: string }) => {
 export default function ChatWidget() {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<{ text: string; isUser: boolean }[]>([
-    { text: "Hi! I'm your Rabuste Barista. Ask me about our menu, calories, or for a recommendation!", isUser: false }
+    { text: "Hi! I'm Labubu AI. Ask me about our menu, calories, or for a recommendation!", isUser: false }
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -68,11 +68,15 @@ export default function ChatWidget() {
 
       let botReply = "I'm not sure how to respond to that.";
 
-      if (data.action === 'navigate') {
-        botReply = `Navigating you to ${data.parameters.route}...`;
-        window.location.href = data.parameters.route;
-      } else if (data.parameters && data.parameters.message) {
-        botReply = data.parameters.message;
+      const data: ApiResponse = await response.json();
+
+      let botResponse = "I didn't catch that.";
+
+      if (data.action === 'navigate' && data.parameters?.route) {
+        botResponse = `Taking you to the ${data.parameters.route.replace('/', '')} page...`;
+        setTimeout(() => { window.location.href = data.parameters?.route || '/'; }, 1500);
+      } else if (data.action === 'respond' && data.parameters?.message) {
+        botResponse = data.parameters.message;
       } else if (data.reply) {
         botReply = data.reply;
       }
@@ -87,26 +91,29 @@ export default function ChatWidget() {
   };
 
   return (
-    <>
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className={`fixed bottom-6 right-6 w-14 h-14 rounded-full flex items-center justify-center shadow-2xl hover:scale-105 transition-all z-50 ${isOpen ? 'bg-[#2C150F] text-white rotate-90' : 'bg-[#2C150F] text-white'}`}
-      >
-        {isOpen ? <X size={24} /> : <MessageCircle size={28} />}
-      </button>
+    <div className="chat-widget-container" style={{ position: 'fixed', bottom: '20px', right: '20px', zIndex: 9999 }}>
+
+      {!isOpen && (
+        <button
+          onClick={() => setIsOpen(true)}
+          className="chat-widget-button flex items-center justify-center gap-2 px-5 py-2.5 rounded-full shadow-lg transition-transform hover:scale-105"
+          style={{ backgroundColor: '#2C1810', height: '48px', width: 'auto' }}
+        >
+          <MessageCircle className="text-[#F3E5AB]" size={22} />
+          <span className="text-[#F3E5AB] font-bold text-base whitespace-nowrap">Labubu AI</span>
+        </button>
+      )}
 
       {isOpen && (
-        <div className="fixed bottom-24 right-6 w-[360px] h-[550px] bg-[#FAFAF9] rounded-xl shadow-2xl overflow-hidden font-sans flex flex-col z-50 animate-in slide-in-from-bottom-5 duration-300">
+        <div className={`chat-window bg-white rounded-xl shadow-2xl overflow-hidden flex flex-col transition-all duration-300 ${isMinimized ? 'h-[60px]' : 'h-[500px]'}`}
+          style={{ width: '350px', border: '1px solid #2C1810' }}>
 
-          {/* Header */}
-          <div className="bg-[#2C150F] text-white p-4 flex items-center justify-between shadow-md">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 8h1a4 4 0 1 1 0 8h-1" /><path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z" /><line x1="6" x2="6" y1="2" y2="4" /><line x1="10" x2="10" y1="2" y2="4" /><line x1="14" x2="14" y1="2" y2="4" /></svg>
-              </div>
-              <div>
-                <h3 className="font-bold text-lg tracking-wide leading-tight">RABUSTE</h3>
-                <p className="text-xs text-white/70 uppercase tracking-wider">AI Assistant</p>
+          <div className="chat-header p-4 flex justify-between items-center text-[#F3E5AB]" style={{ backgroundColor: '#2C1810' }}>
+            <div className="flex items-center gap-2 cursor-pointer" onClick={() => setIsMinimized(!isMinimized)}>
+              <Coffee size={20} />
+              <div className="flex flex-col">
+                <span className="font-bold leading-tight">Labubu</span>
+                <span className="text-[10px] font-normal opacity-80">AI Assistant</span>
               </div>
             </div>
             <button onClick={() => setIsOpen(false)} className="text-white/60 hover:text-white transition-colors">
@@ -114,18 +121,47 @@ export default function ChatWidget() {
             </button>
           </div>
 
-          {/* Messages */}
-          <div className="flex-1 overflow-y-auto p-5 space-y-4 bg-[#FAFAF9]">
-            {messages.map((msg, idx) => (
-              <div
-                key={idx}
-                className={`flex ${msg.isUser ? 'justify-end' : 'justify-start'}`}
-              >
-                <div
-                  className={`max-w-[85%] p-4 text-[15px] shadow-sm leading-relaxed ${msg.isUser
-                    ? 'bg-[#2C150F] text-white rounded-2xl rounded-tr-none'
-                    : 'bg-[#F3F0EB] text-[#44403C] rounded-2xl rounded-tl-none border border-[#E7E5E4]'
-                    }`}
+          {!isMinimized && (
+            <>
+              <div className="chat-messages flex-1 overflow-y-auto p-4 flex flex-col gap-3 bg-[#FAF9F6]">
+                {messages.map((msg, index) => (
+                  <div key={index}
+                    className={`message p-3 rounded-lg max-w-[85%] text-sm ${msg.isUser ? 'self-end' : 'self-start'}`}
+                    style={{
+                      whiteSpace: 'pre-wrap', // Essential for lists!
+                      backgroundColor: msg.isUser ? '#2C1810' : '#EFEBE9',
+                      color: msg.isUser ? '#F3E5AB' : '#2C1810',
+                      border: msg.isUser ? 'none' : '1px solid #D7CCC8',
+                      borderRadius: '8px'
+                    }}>
+                    {msg.text}
+                  </div>
+                ))}
+
+                {isLoading && (
+                  <div className="bg-[#EFEBE9] p-3 rounded-lg flex items-center gap-2 text-[#2C1810] text-sm w-fit border border-[#D7CCC8]">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Brewing answer...</span>
+                  </div>
+                )}
+                <div ref={messagesEndRef} />
+              </div>
+
+              <div className="chat-input-area p-3 border-t border-gray-200 bg-white flex gap-2">
+                <input
+                  type="text"
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+                  placeholder="Ask about menu, calories..."
+                  disabled={isLoading}
+                  className="flex-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:border-[#2C1810] text-sm"
+                />
+                <button
+                  onClick={handleSend}
+                  disabled={isLoading || !input.trim()}
+                  className="p-2 rounded-md disabled:opacity-50"
+                  style={{ backgroundColor: '#2C1810', color: '#F3E5AB' }}
                 >
                   <FormatMessage text={msg.text} />
                 </div>
