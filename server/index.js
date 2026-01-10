@@ -2,6 +2,7 @@ import './env.js'; // MUST BE FIRST
 import express from 'express';
 import cors from 'cors';
 import multer from 'multer';
+import { GoogleGenerativeAI } from '@google/generative-ai'; // Added for Chatbot
 import Razorpay from 'razorpay';
 import crypto from 'crypto';
 import { db, initDb } from './db.js';
@@ -101,6 +102,127 @@ const sessions = {};
 const getISTTime = () => {
     return new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' });
 };
+
+// -----------------------------------------------------
+// CHATBOT ENDPOINT
+// -----------------------------------------------------
+app.post('/api/chat', async (req, res) => {
+    const { message, context } = req.body;
+
+    if (!process.env.GEMINI_API_KEY) {
+        return res.status(503).json({
+            action: 'respond',
+            parameters: { message: "I'm currently undergoing maintenance (API Key missing). Please ask the staff for assistance!" }
+        });
+    }
+
+    try {
+        // 1. Fetch Menu Data for Context
+        const { data: menuItems, error: menuError } = await db.from('menu_items').select('*');
+
+        if (menuError) {
+            console.error('Chatbot Menu Fetch Error:', menuError);
+            throw menuError;
+        }
+
+        // 2. Fetch Workshops (optional, but good for "what events are happening")
+        const { data: workshops, error: workshopError } = await db.from('workshops').select('*');
+
+        // 3. Construct System Context
+        // 3. Construct System Context
+        // Simplify menu items to reduce token usage but keep essential info
+        const simpleMenu = menuItems.map(item =>
+            `${item.name} (${item.category}): ₹${item.price} | ${item.calories || 'N/A'} kcal | Tags: ${item.tags || ''} | Desc: ${item.description || ''}`
+        ).join('\n');
+
+        const simpleWorkshops = workshops ? workshops.map(w =>
+            `${w.title} on ${w.datetime} for ₹${w.price} (${w.seats - w.booked} seats left)`
+        ).join('\n') : "No upcoming workshops.";
+
+        // FIX: Parse history for context retention
+        let historyContext = "";
+        if (context && context.history && Array.isArray(context.history)) {
+            historyContext = context.history.map(msg =>
+                `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.text}`
+            ).join('\n');
+        }
+
+        const systemPrompt = `
+        You are "Rabuste Bot", the intelligent assistant for Rabuste Café.
+        
+        **YOUR KNOWLEDGE BASE (REAL-TIME DATA):**
+        
+        --- MENU ITEMS ---
+        ${simpleMenu}
+        
+        --- WORKSHOPS/EVENTS ---
+        ${simpleWorkshops}
+
+        **PREVIOUS CONVERSATION:**
+        ${historyContext ? historyContext : "(No history yet)"}
+
+        **YOUR GOALS:**
+        1. Answer detailed questions about the menu (ingredients, price, calories, caffeine).
+        2. Make suggestions based on user preferences (e.g., "something low calorie", "strong coffee").
+        3. Be friendly, helpful, and concise.
+        4. IF the user asks to "navigate" or "go to" a page, return a JSON action.
+        5. IMPORTANT: Use the PREVIOUS CONVERSATION to understand context (e.g., if user asks "what is it made of?", look at the previous bot message to know what "it" is).
+        
+        **FORMATTING RULES:**
+        - Use bullet points (•) for lists.
+        - **Bold** key items like names and prices.
+        - Keep responses relatively short unless asked for details.
+        - IF the user wants to navigate (e.g., "Show me the menu page", "Go to workshops"), OUTPUT ONLY JSON:
+          {"action": "navigate", "parameters": {"route": "/menu"}} (or /workshops, /art, /about)
+
+        **USER CONTEXT:**
+        ${JSON.stringify(context || {})}
+        
+        User Message: "${message}"
+        `;
+
+        // 4. Call Gemini
+        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" }); // Use flash for speed
+
+        const result = await model.generateContent(systemPrompt);
+        const responseText = result.response.text();
+
+        // 5. Parse Response (Check for JSON instructions)
+        let apiResponse;
+        const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+
+        if (jsonMatch) {
+            try {
+                const jsonPart = JSON.parse(jsonMatch[0]);
+                if (jsonPart.action && jsonPart.action === 'navigate') {
+                    apiResponse = jsonPart;
+                }
+            } catch (e) {
+                // Failed to parse JSON, treat as text
+            }
+        }
+
+        if (!apiResponse) {
+            // Clean up markdown slightly if needed, but Gemini usually does well with the prompt
+            // Remove wrapping '''json ... ''' if present but parsing failed or it wasn't a nav command
+            const cleanText = responseText.replace(/```json|```/g, '').trim();
+            apiResponse = {
+                action: 'respond',
+                parameters: { message: cleanText }
+            };
+        }
+
+        res.json(apiResponse);
+
+    } catch (error) {
+        console.error('Chatbot Error:', error);
+        res.status(500).json({
+            action: 'respond',
+            parameters: { message: "I'm having a little trouble thinking right now. Please try again! ☕" }
+        });
+    }
+});
 
 // -----------------------------------------------------
 // STANDARD API ROUTES
