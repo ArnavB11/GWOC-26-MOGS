@@ -14,6 +14,7 @@ import AwarenessPage from './components/AwarenessPage';
 import Footer from './components/Footer';
 import PaymentFailurePage from './components/PaymentFailurePage';
 import AdminDashboard from './components/AdminDashboard';
+import FranchisePage from './components/FranchisePage';
 
 
 import FindStorePage from './components/FindStorePage';
@@ -53,6 +54,8 @@ const App: React.FC = () => {
         return Page.FAQ;
       case '/admin':
         return Page.ADMIN;
+      case '/franchise':
+        return Page.FRANCHISE;
       default:
         return Page.HOME;
     }
@@ -78,6 +81,8 @@ const App: React.FC = () => {
         return '/faq';
       case Page.ADMIN:
         return '/admin';
+      case Page.FRANCHISE:
+        return '/franchise';
       case Page.HOME:
       default:
         return '/';
@@ -211,6 +216,10 @@ const App: React.FC = () => {
 
             {currentPage === Page.FAQ && (
               <FAQPage />
+            )}
+
+            {currentPage === Page.FRANCHISE && (
+              <FranchisePage />
             )}
 
             {currentPage === Page.ADMIN && (
