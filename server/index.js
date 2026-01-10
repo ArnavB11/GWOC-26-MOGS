@@ -376,6 +376,9 @@ app.post('/api/orders', async (req, res) => {
         const orderDate = getISTTime();
 
         // Insert order with all columns: include payment_status, payment_method, and NULL payment IDs for counter orders
+        // Set status to 'placed' by default if not provided
+        const orderStatus = req.body.status || 'placed';
+
         // Supabase/PostgreSQL JSONB fields accept objects directly
         const { data, error } = await db.from('orders').insert({
             id,
@@ -387,7 +390,8 @@ app.post('/api/orders', async (req, res) => {
             payment_status,
             payment_method: normalizedPaymentMethod,
             razorpay_order_id: null,
-            razorpay_payment_id: null
+            razorpay_payment_id: null,
+            status: orderStatus
         }).select().single();
 
         if (error) {
@@ -398,13 +402,134 @@ app.post('/api/orders', async (req, res) => {
             });
         }
         console.log('Order saved successfully:', id, 'at', orderDate);
-        res.status(200).json({ ...req.body, date: orderDate });
+        res.status(200).json({ ...req.body, date: orderDate, status: orderStatus });
     } catch (error) {
         console.error('Unexpected error in order creation:', error);
         return res.status(500).json({
             error: 'Unexpected server error',
             details: error.message
         });
+    }
+});
+
+// Get orders by email
+app.get('/api/orders/by-email', async (req, res) => {
+    try {
+        const { email } = req.query;
+        if (!email) {
+            return res.status(400).json({ error: 'Email parameter is required' });
+        }
+
+        const searchEmail = email.toLowerCase().trim();
+
+        // Fetch all orders and filter by email in JavaScript
+        // Supabase returns JSONB fields as objects, so we can filter directly
+        const { data, error } = await db
+            .from('orders')
+            .select('*')
+            .order('date', { ascending: false });
+
+        if (error) {
+            console.error('Error fetching orders by email:', error);
+            return res.status(500).json({ error: error.message });
+        }
+
+        // Parse JSON fields and filter by email
+        const parsed = (data || [])
+            .map(r => ({
+                ...r,
+                customer: typeof r.customer === 'string' ? JSON.parse(r.customer) : r.customer,
+                items: typeof r.items === 'string' ? JSON.parse(r.items) : r.items
+            }))
+            .filter(order => {
+                // Check if customer email matches (case-insensitive)
+                const customerEmail = order.customer?.email?.toLowerCase().trim();
+                return customerEmail === searchEmail;
+            });
+
+        res.json(parsed);
+    } catch (error) {
+        console.error('Unexpected error in orders by email:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Get active orders (non-completed)
+app.get('/api/orders/active', async (req, res) => {
+    try {
+        const { data, error } = await db
+            .from('orders')
+            .select('*')
+            .neq('status', 'completed')
+            .order('date', { ascending: false });
+
+        if (error) {
+            console.error('Error fetching active orders:', error);
+            return res.status(500).json({ error: error.message });
+        }
+
+        // Parse JSON fields
+        const parsed = (data || []).map(r => ({
+            ...r,
+            customer: typeof r.customer === 'string' ? JSON.parse(r.customer) : r.customer,
+            items: typeof r.items === 'string' ? JSON.parse(r.items) : r.items
+        }));
+
+        res.json(parsed);
+    } catch (error) {
+        console.error('Unexpected error in active orders:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Update order status
+app.put('/api/orders/:id/status', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { status, updated_by } = req.body;
+
+        if (!status) {
+            return res.status(400).json({ error: 'Status is required' });
+        }
+
+        // Update order status
+        const { data: updatedOrder, error: updateError } = await db
+            .from('orders')
+            .update({ status })
+            .eq('id', id)
+            .select()
+            .single();
+
+        if (updateError) {
+            console.error('Error updating order status:', updateError);
+            return res.status(500).json({ error: updateError.message });
+        }
+
+        // Log status change
+        const { error: logError } = await db
+            .from('order_status_logs')
+            .insert({
+                order_id: id,
+                status: status,
+                updated_by: updated_by || 'employee'
+            });
+
+        if (logError) {
+            console.error('Error logging status change:', logError);
+            // Don't fail the request if logging fails, but log it
+        }
+
+        // Parse JSON fields
+        const parsed = {
+            ...updatedOrder,
+            customer: typeof updatedOrder.customer === 'string' ? JSON.parse(updatedOrder.customer) : updatedOrder.customer,
+            items: typeof updatedOrder.items === 'string' ? JSON.parse(updatedOrder.items) : updatedOrder.items
+        };
+
+        res.json(parsed);
+    } catch (error) {
+        console.error('Unexpected error in update order status:', error);
+        res.status(500).json({ error: error.message });
     }
 });
 // -----------------------------------------------------
@@ -813,7 +938,8 @@ app.post('/api/payments/verify-payment', async (req, res) => {
                 payment_status: 'PAID',
                 payment_method: 'Paid Online',
                 razorpay_order_id,
-                razorpay_payment_id
+                razorpay_payment_id,
+                status: 'placed' // Default status for new orders
             }).select().single();
 
             if (error) {

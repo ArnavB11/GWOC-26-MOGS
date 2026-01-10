@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion as motionBase, AnimatePresence as AnimatePresenceBase } from 'framer-motion';
-import { ShoppingBag, Menu, User, X } from 'lucide-react';
+import { ShoppingBag, Menu, X } from 'lucide-react';
 import { Page } from '../types';
 
 // Fix for framer-motion type mismatch
@@ -20,6 +20,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, currentPage, cartCount }) =
     { label: 'Art Gallery', page: Page.ART },
     { label: 'Philosophy', page: Page.AWARENESS },
     { label: 'Find Store', page: Page.FIND_STORE },
+    { label: 'Track Order', page: Page.TRACK_ORDER },
   ];
 
   const [menuOpen, setMenuOpen] = React.useState(false);
@@ -79,16 +80,6 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, currentPage, cartCount }) =
       {/* RIGHT SIDE ICONS */}
       {currentPage !== Page.ADMIN && (
       <div className={`fixed top-4 right-4 z-50 flex items-center space-x-4 md:space-x-6 pointer-events-auto ${textColorClass}`}>
-            
-            {/* Portal Button */}
-            <button 
-              onClick={() => handleNavigate(Page.ADMIN)}
-              className="flex items-center space-x-2 text-[10px] uppercase tracking-[0.4em] font-sans font-semibold opacity-100 hover:opacity-70 transition-opacity"
-            >
-              <User className="w-4 h-4" />
-              <span className="hidden sm:inline">Portal</span>
-            </button>
-
             {/* Cart Button */}
             <button 
               onClick={() => handleNavigate(Page.CART)}
