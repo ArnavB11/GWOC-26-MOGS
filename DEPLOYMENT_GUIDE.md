@@ -10,28 +10,30 @@ This guide will help you deploy your website to production using free hosting se
 
 ---
 
-## Step 1: Deploy Backend to Render
+## Step 1: Deploy Backend to Railway
 
-### 1.1 Create Render Account
-1. Go to https://render.com
+### 1.1 Create Railway Account
+1. Go to https://railway.app
 2. Sign up with your GitHub account
-3. Verify your email
+3. Verify your email (if required)
 
-### 1.2 Create New Web Service
-1. Click **"New +"** → **"Web Service"**
-2. Connect your GitHub repository: `ArnavB11/GWOC-26-MOGS`
-3. Configure the service:
-   - **Name**: `rabuste-backend`
-   - **Region**: Choose closest to you (e.g., Singapore, Mumbai)
-   - **Branch**: `main` (or your default branch)
-   - **Root Directory**: `GWOC-26-MOGS/server`
-   - **Runtime**: `Node`
-   - **Build Command**: Leave empty (or `npm install`)
-   - **Start Command**: `node index.js`
-   - **Instance Type**: Free
+### 1.2 Create New Project
+1. Click **"New Project"**
+2. Select **"Deploy from GitHub repo"**
+3. Authorize Railway to access your GitHub if prompted
+4. Select your repository: `ArnavB11/GWOC-26-MOGS`
 
-### 1.3 Add Environment Variables
-Click **"Advanced"** → **"Add Environment Variable"** and add:
+### 1.3 Configure Service
+1. Railway will automatically detect your project
+2. Click on the service that was created
+3. Go to **"Settings"** tab
+4. Set **"Root Directory"**: `GWOC-26-MOGS/server`
+5. Set **"Start Command"**: `node index.js`
+6. Railway will automatically detect Node.js and run `npm install`
+
+### 1.4 Add Environment Variables
+1. In your service, go to **"Variables"** tab
+2. Click **"New Variable"** and add each one:
 
 ```
 SUPABASE_URL=https://rlgrdafxczxxiamuutqg.supabase.co
@@ -43,24 +45,26 @@ NODE_ENV=production
 PORT=5000
 ```
 
-### 1.4 Deploy
-1. Click **"Create Web Service"**
-2. Wait 5-10 minutes for deployment
-3. Once deployed, copy your backend URL (e.g., `https://rabuste-backend.onrender.com`)
+### 1.5 Generate Public Domain
+1. Go to **"Settings"** tab in your service
+2. Scroll to **"Networking"** section
+3. Click **"Generate Domain"** (or **"Settings"** → **"Generate Domain"**)
+4. Railway will create a public URL (e.g., `https://rabuste-backend-production.up.railway.app`)
+5. Copy this URL - you'll need it for the frontend
 
-**⚠️ Important**: Render free tier spins down after 15 minutes of inactivity. First request after spin-down takes ~30 seconds.
+**✅ Advantage**: Railway free tier doesn't spin down like Render, so your backend stays active!
 
 ---
 
 ## Step 2: Update Frontend Config
 
-After getting your backend URL from Render:
+After getting your backend URL from Railway:
 
-1. Update `src/config.ts`:
-   - Replace `'https://rabuste-backend.onrender.com'` with your actual Render URL
+1. Update `src/config.ts` (optional):
+   - Replace `'https://rabuste-backend.onrender.com'` with your actual Railway URL
 
 2. Or set it via environment variable (recommended):
-   - We'll add this in Vercel
+   - We'll add this in Vercel (this will override the config file)
 
 ---
 
@@ -82,9 +86,9 @@ After getting your backend URL from Render:
 In Vercel project settings → **Environment Variables**, add:
 
 ```
-VITE_API_URL=https://rabuste-backend.onrender.com
+VITE_API_URL=https://your-backend-url.up.railway.app
 ```
-(Replace with your actual Render backend URL)
+(Replace with your actual Railway backend URL from Step 1.5)
 
 Also add all your VITE_ prefixed variables:
 ```
@@ -143,9 +147,10 @@ Then redeploy the backend.
 ## Troubleshooting
 
 ### Backend not responding
-- Check Render logs for errors
-- Verify all environment variables are set
-- Wait 30 seconds if it's the first request (Render spin-up)
+- Check Railway logs for errors (click on your service → "Deployments" → view logs)
+- Verify all environment variables are set correctly
+- Check that the Root Directory is set to `GWOC-26-MOGS/server`
+- Verify the Start Command is `node index.js`
 
 ### CORS errors
 - Update CORS in `server/index.js` with your Vercel URL
@@ -162,19 +167,20 @@ Then redeploy the backend.
 
 ---
 
-## Alternative: Railway (Backend)
+## Alternative: Render (Backend)
 
-If Render doesn't work, try Railway:
+If Railway doesn't work, you can use Render instead:
 
-1. Go to https://railway.app
+1. Go to https://render.com
 2. Sign up with GitHub
-3. New Project → Deploy from GitHub
-4. Select your repo
+3. New → Web Service
+4. Connect your repo: `ArnavB11/GWOC-26-MOGS`
 5. Set Root Directory: `GWOC-26-MOGS/server`
-6. Add environment variables (same as Render)
-7. Deploy
+6. Set Start Command: `node index.js`
+7. Add environment variables (same as Railway)
+8. Deploy
 
-Railway gives you a URL like `https://your-app.railway.app`
+**Note**: Render free tier spins down after 15 minutes of inactivity.
 
 ---
 
@@ -190,10 +196,10 @@ Railway gives you a URL like `https://your-app.railway.app`
 ## Support
 
 If you encounter issues:
-1. Check Render/Vercel logs
+1. Check Railway/Vercel logs
 2. Check browser console
 3. Verify all environment variables are set
-4. Test backend URL directly: `https://your-backend.onrender.com/api/menu`
+4. Test backend URL directly: `https://your-backend.up.railway.app/api/menu`
 
 Good luck! 🚀
 
