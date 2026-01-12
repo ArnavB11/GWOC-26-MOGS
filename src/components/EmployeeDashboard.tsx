@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion as motionBase } from 'framer-motion';
 import { ArrowLeft, Lock, Package, ChefHat, Clock, CheckCircle2 } from 'lucide-react';
 import { Page } from '../types';
+import { API_BASE_URL } from '../config';
 
 const motion = motionBase as any;
 
@@ -55,7 +56,7 @@ const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({ onNavigate, onBac
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch('http://localhost:5000/api/orders/active');
+      const response = await fetch(`${API_BASE_URL}/api/orders/active`);
       if (!response.ok) throw new Error('Failed to fetch orders');
       const data = await response.json();
       setOrders(data || []);
@@ -99,7 +100,7 @@ const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({ onNavigate, onBac
 
     setUpdatingOrderId(orderId);
     try {
-      const response = await fetch(`http://localhost:5000/api/orders/${orderId}/status`, {
+      const response = await fetch(`${API_BASE_URL}/api/orders/${orderId}/status`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus, updated_by: 'employee' })

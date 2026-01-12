@@ -48,9 +48,17 @@ if (RAZORPAY_KEY_ID && RAZORPAY_KEY_SECRET) {
 }
 
 const app = express();
-const PORT = 5000;
+const PORT = process.env.PORT || 5000;
 
-app.use(cors());
+// CORS configuration - allow frontend domains
+app.use(cors({
+  origin: [
+    'http://localhost:3000',
+    'https://*.vercel.app',  // Allow all Vercel preview deployments
+    process.env.FRONTEND_URL  // Custom domain if set
+  ].filter(Boolean),
+  credentials: true
+}));
 app.use(express.json());
 
 // Request Logging Middleware

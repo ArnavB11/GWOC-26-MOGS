@@ -5,6 +5,7 @@ import {
     Coffee, Palette, Users, ArrowRight, CheckCircle,
     TrendingUp, DollarSign, MapPin, Heart, ChevronDown, X
 } from 'lucide-react';
+import { API_BASE_URL } from '../config';
 
 interface FaqItem {
     id: number;
@@ -31,7 +32,7 @@ const FranchisePage: React.FC = () => {
     // Fetch Data
     useEffect(() => {
         // Fetch Settings
-        fetch('http://localhost:5000/api/franchise/settings')
+        fetch(`${API_BASE_URL}/api/franchise/settings`)
             .then(res => res.json())
             .then(data => {
                 if (data.contact_number) setContactNumber(data.contact_number);
@@ -39,7 +40,7 @@ const FranchisePage: React.FC = () => {
             .catch(err => console.error('Failed to fetch settings:', err));
 
         // Fetch FAQs
-        fetch('http://localhost:5000/api/franchise/faq')
+        fetch(`${API_BASE_URL}/api/franchise/faq`)
             .then(res => res.json())
             .then(data => {
                 if (Array.isArray(data)) setFaqs(data);
@@ -61,7 +62,7 @@ const FranchisePage: React.FC = () => {
         setErrorMessage('');
 
         try {
-            const res = await fetch('http://localhost:5000/api/franchise/enquire', {
+            const res = await fetch(`${API_BASE_URL}/api/franchise/enquire`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(formData)

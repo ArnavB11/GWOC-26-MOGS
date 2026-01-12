@@ -4,6 +4,7 @@ import { CartItem } from '../types';
 import { Trash2, Minus, Plus, ArrowLeft, CheckCircle2 } from 'lucide-react';
 import emailjs from '@emailjs/browser';
 import { useDataContext } from '../DataContext';
+import { API_BASE_URL } from '../config';
 
 const motion = motionBase as any;
 
@@ -231,7 +232,7 @@ const CartPage: React.FC<CartPageProps> = ({
 
     try {
       // Create Razorpay order
-      const response = await fetch('http://localhost:5000/api/payments/create-order', {
+      const response = await fetch(`${API_BASE_URL}/api/payments/create-order`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -267,7 +268,7 @@ const CartPage: React.FC<CartPageProps> = ({
             console.log('[PAYMENT] Razorpay payment success, verifying...');
 
             // Verify payment
-            const verifyResponse = await fetch('http://localhost:5000/api/payments/verify-payment', {
+            const verifyResponse = await fetch(`${API_BASE_URL}/api/payments/verify-payment`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
