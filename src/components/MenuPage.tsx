@@ -6,6 +6,7 @@ import { Search, Filter, X } from 'lucide-react';
 import { CoffeeItem } from '../types';
 import { useDataContext } from '../DataContext';
 import BrewDeskPopup from './BrewDeskPopup';
+import { API_BASE_URL } from '../config';
 
 // Fix for framer-motion type mismatch in the current environment
 const motion = motionBase as any;
@@ -245,7 +246,7 @@ const MenuPage: React.FC<MenuPageProps> = ({ onAddToCart }) => {
   useEffect(() => {
     const fetchTrending = async () => {
       try {
-        const response = await fetch('http://localhost:5000/api/trending');
+        const response = await fetch(`${API_BASE_URL}/api/trending`);
         if (response.ok) {
           const data = await response.json();
           if (data.items && data.items.length >= 3) {

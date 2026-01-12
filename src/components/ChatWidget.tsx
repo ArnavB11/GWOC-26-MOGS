@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { MessageCircle, X, Send, Loader2, Coffee, Minimize2, Maximize2 } from 'lucide-react';
 import './ChatWidget.css';
+import { API_BASE_URL } from '../config';
 
 interface ApiResponse {
   action?: 'navigate' | 'respond';
@@ -44,7 +45,7 @@ export default function ChatWidget() {
     setIsLoading(true);
 
     try {
-      const response = await fetch('http://localhost:5000/api/chat', {
+      const response = await fetch(`${API_BASE_URL}/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: userMessage }),

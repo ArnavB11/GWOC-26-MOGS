@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { CartItem } from './types';
+import { API_BASE_URL } from './config';
 
 // Shared data shapes for menu, art, and workshops
 export interface CoffeeAdminItem {
@@ -263,10 +264,10 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const fetchData = async () => {
       try {
         const [menuRes, artRes, workshopRes, orderRes] = await Promise.all([
-          fetch('http://localhost:5000/api/menu'),
-          fetch('http://localhost:5000/api/art'),
-          fetch('http://localhost:5000/api/workshops'),
-          fetch('http://localhost:5000/api/orders')
+          fetch(`${API_BASE_URL}/api/menu`),
+          fetch(`${API_BASE_URL}/api/art`),
+          fetch(`${API_BASE_URL}/api/workshops`),
+          fetch(`${API_BASE_URL}/api/orders`)
         ]);
 
         if (menuRes.ok) setMenuItems(await menuRes.json());
@@ -283,7 +284,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // --- MENU ACTIONS ---
   const addMenuItem = async (item: CoffeeAdminItem) => {
     try {
-      const res = await fetch('http://localhost:5000/api/menu', {
+      const res = await fetch(`${API_BASE_URL}/api/menu`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(item)
@@ -302,7 +303,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const updateMenuItem = async (id: string, updates: Partial<CoffeeAdminItem>) => {
     try {
-      const res = await fetch(`http://localhost:5000/api/menu/${id}`, {
+      const res = await fetch(`${API_BASE_URL}/api/menu/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updates)
@@ -317,7 +318,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const deleteMenuItem = async (id: string) => {
     try {
-      await fetch(`http://localhost:5000/api/menu/${id}`, { method: 'DELETE' });
+      await fetch(`${API_BASE_URL}/api/menu/${id}`, { method: 'DELETE' });
       setMenuItems(prev => prev.filter(item => item.id !== id));
     } catch (err) { console.error(err); }
   };
@@ -325,7 +326,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // --- ART ACTIONS ---
   const addArtItem = async (item: ArtAdminItem) => {
     try {
-      const res = await fetch('http://localhost:5000/api/art', {
+      const res = await fetch(`${API_BASE_URL}/api/art`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(item)
@@ -345,7 +346,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const updateArtItem = async (id: string, updates: Partial<ArtAdminItem>) => {
     try {
-      const res = await fetch(`http://localhost:5000/api/art/${id}`, {
+      const res = await fetch(`${API_BASE_URL}/api/art/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updates)
@@ -370,7 +371,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const deleteArtItem = async (id: string) => {
     try {
-      await fetch(`http://localhost:5000/api/art/${id}`, { method: 'DELETE' });
+      await fetch(`${API_BASE_URL}/api/art/${id}`, { method: 'DELETE' });
       setArtItems(prev => prev.filter(item => item.id !== id));
     } catch (err) { console.error(err); }
   };
@@ -423,8 +424,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     // Save to backend - throw error if it fails
     try {
-      console.log('[FRONTEND] Sending POST to http://localhost:5000/api/orders');
-      const response = await fetch('http://localhost:5000/api/orders', {
+      console.log('[FRONTEND] Sending POST to', `${API_BASE_URL}/api/orders`);
+      const response = await fetch(`${API_BASE_URL}/api/orders`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...newOrder, paymentMethod })

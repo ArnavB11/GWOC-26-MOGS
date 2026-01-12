@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion as motionBase } from 'framer-motion';
 import { Search, ArrowLeft, Clock, CheckCircle2, Package, ChefHat } from 'lucide-react';
 import { Page } from '../types';
+import { API_BASE_URL } from '../config';
 
 const motion = motionBase as any;
 
@@ -79,7 +80,7 @@ const TrackOrderPage: React.FC<TrackOrderPageProps> = ({ onNavigate }) => {
     setSearched(true);
 
     try {
-      const response = await fetch(`http://localhost:5000/api/orders/by-email?email=${encodeURIComponent(email.trim())}`);
+      const response = await fetch(`${API_BASE_URL}/api/orders/by-email?email=${encodeURIComponent(email.trim())}`);
       
       if (!response.ok) {
         throw new Error('Failed to fetch orders');

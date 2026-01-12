@@ -27,6 +27,7 @@ import {
   WorkshopAdminItem,
   Order,
 } from '../DataContext';
+import { API_BASE_URL } from '../config';
 
 
 interface AdminDashboardProps {
@@ -128,7 +129,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onLogout }) => 
   const [selectedEnquiry, setSelectedEnquiry] = useState<FranchiseEnquiry | null>(null);
 
   const refreshEnquiries = () => {
-    fetch('http://localhost:5000/api/franchise/enquiries')
+    fetch(`${API_BASE_URL}/api/franchise/enquiries`)
       .then(res => res.json())
       .then(data => {
         if (Array.isArray(data)) setEnquiries(data);
@@ -141,7 +142,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onLogout }) => 
     refreshEnquiries();
 
     // Fetch FAQs
-    fetch('http://localhost:5000/api/franchise/faq')
+    fetch(`${API_BASE_URL}/api/franchise/faq`)
       .then(res => res.json())
       .then(data => {
         if (Array.isArray(data)) setFranchiseFaqs(data);
@@ -149,7 +150,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onLogout }) => 
       .catch(err => console.error(err));
 
     // Fetch Settings
-    fetch('http://localhost:5000/api/franchise/settings')
+    fetch(`${API_BASE_URL}/api/franchise/settings`)
       .then(async res => {
         if (!res.ok) {
           const err = await res.json().catch(() => ({}));
@@ -166,7 +167,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onLogout }) => 
 
   const saveFranchiseContact = async (number: string) => {
     try {
-      const res = await fetch('http://localhost:5000/api/franchise/settings', {
+      const res = await fetch(`${API_BASE_URL}/api/franchise/settings`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ contact_number: number })
@@ -189,7 +190,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onLogout }) => 
 
   const addFaq = async (question: string, answer: string) => {
     try {
-      const res = await fetch('http://localhost:5000/api/franchise/faq', {
+      const res = await fetch(`${API_BASE_URL}/api/franchise/faq`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ question, answer })
@@ -201,7 +202,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onLogout }) => 
           showToast('FAQ added', 'success');
         } else {
           // Fallback refresh
-          const items = await (await fetch('http://localhost:5000/api/franchise/faq')).json();
+          const items = await (await fetch(`${API_BASE_URL}/api/franchise/faq`)).json();
           setFranchiseFaqs(items);
           showToast('FAQ added', 'success');
         }
@@ -220,7 +221,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onLogout }) => 
 
   const deleteFaq = async (id: number) => {
     try {
-      const res = await fetch(`http://localhost:5000/api/franchise/faq/${id}`, { method: 'DELETE' });
+      const res = await fetch(`${API_BASE_URL}/api/franchise/faq/${id}`, { method: 'DELETE' });
       if (res.ok) {
         setFranchiseFaqs(prev => prev.filter(f => f.id !== id));
         showToast('FAQ deleted', 'success');
@@ -280,7 +281,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onLogout }) => 
     const formData = new FormData();
     formData.append('file', file);
     try {
-      const res = await fetch('http://localhost:5000/api/upload', {
+      const res = await fetch(`${API_BASE_URL}/api/upload`, {
         method: 'POST',
         body: formData,
       });
@@ -743,7 +744,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onLogout }) => 
             onClose={() => setSelectedEnquiry(null)}
             onUpdateStatus={async (id, status) => {
               try {
-                const res = await fetch(`http://localhost:5000/api/franchise/enquiries/${id}/status`, {
+                const res = await fetch(`${API_BASE_URL}/api/franchise/enquiries/${id}/status`, {
                   method: 'PUT',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({ status })
