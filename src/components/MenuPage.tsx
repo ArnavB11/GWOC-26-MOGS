@@ -471,6 +471,92 @@ const MenuPage: React.FC<MenuPageProps> = ({ onAddToCart }) => {
     }, 1500);
   };
 
+  // Fuzzy search helper - checks if query is similar to text (handles typos)
+  const fuzzyMatch = (text: string, query: string): boolean => {
+    const textLower = text.toLowerCase();
+    const queryLower = query.toLowerCase();
+    
+    // Exact substring match (highest priority)
+    if (textLower.includes(queryLower)) return true;
+    
+    // If query is too short, only do exact match
+    if (queryLower.length < 3) return false;
+    
+    // Normalize: remove special characters and spaces
+    const normalizedText = textLower.replace(/[^a-z0-9]/g, '');
+    const normalizedQuery = queryLower.replace(/[^a-z0-9]/g, '');
+    
+    // Check if normalized query is a substring of normalized text
+    if (normalizedText.includes(normalizedQuery)) return true;
+    
+    // Only do fuzzy matching for queries 4+ characters to avoid false matches
+    if (normalizedQuery.length < 4) return false;
+    
+    // Split into words for word-by-word matching (prevents "tea" matching "coffee")
+    const textWords = textLower.split(/[\s\-_]+/).filter(w => w.length > 0);
+    const queryWords = queryLower.split(/[\s\-_]+/).filter(w => w.length > 0);
+    
+    // Check if any query word matches any text word
+    for (const queryWord of queryWords) {
+      if (queryWord.length < 3) continue; // Skip very short words
+      
+      for (const textWord of textWords) {
+        // Exact match in word
+        if (textWord.includes(queryWord)) return true;
+        
+        // Only do fuzzy matching if words are similar length (within 2 chars)
+        if (Math.abs(textWord.length - queryWord.length) > 2) continue;
+        
+        // Check if words share the same first 2-3 characters (prefix match)
+        // This prevents "tea" from matching "coffee" (different prefixes)
+        const minPrefix = Math.min(3, Math.min(textWord.length, queryWord.length));
+        if (textWord.substring(0, minPrefix) !== queryWord.substring(0, minPrefix)) {
+          continue; // Different words, skip fuzzy matching
+        }
+        
+        // For words that share a prefix, allow common typos
+        const normalizedTextWord = textWord.replace(/[^a-z0-9]/g, '');
+        const normalizedQueryWord = queryWord.replace(/[^a-z0-9]/g, '');
+        
+        // Common character swaps only for similar words
+        const commonSwaps: [string, string][] = [
+          ['ee', 'e'], ['e', 'ee'], // coffee/cofee
+          ['a', 'e'], ['e', 'a'], // bagel/begel
+        ];
+        
+        for (const [from, to] of commonSwaps) {
+          const swappedQuery = normalizedQueryWord.replace(new RegExp(from, 'g'), to);
+          if (normalizedTextWord.includes(swappedQuery) || swappedQuery.includes(normalizedTextWord)) {
+            return true;
+          }
+        }
+        
+        // For longer words (5+ chars), allow 1 character difference if they're very similar
+        if (normalizedQueryWord.length >= 5 && normalizedTextWord.length >= 5) {
+          // Count matching characters in order
+          let matchingChars = 0;
+          let textIndex = 0;
+          for (let i = 0; i < normalizedQueryWord.length && textIndex < normalizedTextWord.length; i++) {
+            if (normalizedTextWord[textIndex] === normalizedQueryWord[i]) {
+              matchingChars++;
+              textIndex++;
+            } else if (textIndex + 1 < normalizedTextWord.length && 
+                       normalizedTextWord[textIndex + 1] === normalizedQueryWord[i]) {
+              // Allow skipping one character
+              textIndex += 2;
+              matchingChars++;
+            }
+          }
+          // Only match if at least 80% of query characters match (very strict)
+          const matchRatio = matchingChars / normalizedQueryWord.length;
+          if (matchRatio >= 0.8) return true;
+        }
+      }
+    }
+    
+    return false;
+  };
+
   const filteredCategories = useMemo(() => {
     const query = (search || '').trim().toLowerCase();
 
@@ -501,8 +587,29 @@ const MenuPage: React.FC<MenuPageProps> = ({ onAddToCart }) => {
         });
       }
 
+      // If no search query, include all items
+      if (!query) {
+        categoryMap.get(canonicalCategory)!.items.push({
+          id: item.id,
+          name: item.name,
+          price: item.price,
+        });
+        return;
+      }
+
+      // Search in multiple fields:
+      // 1. Item name
       const nameStr = (item.name ?? '').toLowerCase();
-      if (!query || nameStr.includes(query)) {
+      const nameMatches = fuzzyMatch(nameStr, query);
+      
+      // 2. Category name (so "coffee" finds items even if it's just a category heading)
+      const categoryMatches = fuzzyMatch(categoryStr.toLowerCase(), query);
+      
+      // 3. Group name (e.g., "Robusta Specialty", "Blend")
+      const groupMatches = fuzzyMatch(group.toLowerCase(), query);
+      
+      // Include item if any field matches
+      if (nameMatches || categoryMatches || groupMatches) {
         categoryMap.get(canonicalCategory)!.items.push({
           id: item.id,
           name: item.name,
@@ -650,7 +757,8 @@ const MenuPage: React.FC<MenuPageProps> = ({ onAddToCart }) => {
           {/* Top bar: search + sort (non-sticky) */}
           <div className="mb-6">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-              <div className="relative w-[85%] md:w-full md:max-w-md">
+              {/* Search bar - hidden on mobile, visible on laptop/desktop */}
+              <div className="relative w-[85%] md:w-full md:max-w-md hidden md:block">
                 <Search className="w-4 h-4 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
                   value={search}
