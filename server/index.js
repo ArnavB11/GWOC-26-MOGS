@@ -3,10 +3,8 @@ import express from 'express';
 import cors from 'cors';
 import multer from 'multer';
 import Razorpay from 'razorpay';
-import crypto from 'crypto';
-import { db, initDb } from './db.js';
-import { initializeKnowledge, rebuildKnowledgeIndex, getFuseKnowledge } from './data/knowledgeManager.js';
-
+import { db } from './db.js';
+import { rebuildKnowledgeIndex } from './data/knowledgeManager.js';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -14,39 +12,9 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Initialize Razorpay with safe error handling
-let razorpayInstance = null;
-// Trim whitespace from environment variables and remove quotes if present
-const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID?.trim().replace(/^["']|["']$/g, '') || null;
-const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET?.trim().replace(/^["']|["']$/g, '') || null;
-
-// Debug: Log what we found (without exposing secrets)
-console.log('🔍 Environment variables check:');
-console.log('   RAZORPAY_KEY_ID:', RAZORPAY_KEY_ID ? `✅ Found (${RAZORPAY_KEY_ID.length} chars)` : '❌ Missing');
-console.log('   RAZORPAY_KEY_SECRET:', RAZORPAY_KEY_SECRET ? `✅ Found (${RAZORPAY_KEY_SECRET.length} chars)` : '❌ Missing');
-
-// List all RAZORPAY related env vars for debugging
-const razorpayVars = Object.keys(process.env).filter(key => key.includes('RAZORPAY'));
-if (razorpayVars.length > 0) {
-    console.log('   Found Razorpay env vars:', razorpayVars.join(', '));
-} else {
-    console.log('   ⚠️  No RAZORPAY environment variables found in process.env');
-}
-
-if (RAZORPAY_KEY_ID && RAZORPAY_KEY_SECRET) {
-    try {
-        razorpayInstance = new Razorpay({
-            key_id: RAZORPAY_KEY_ID,
-            key_secret: RAZORPAY_KEY_SECRET
-        });
-        console.log('✅ Razorpay initialized successfully');
-    } catch (error) {
-        console.error('❌ Failed to initialize Razorpay:', error.message);
-    }
-} else {
-    console.warn('⚠️  Razorpay credentials not found. UPI payment will not be available.');
-}
-
+// -----------------------------------------------------
+// CONFIGURATION & SETUP
+// -----------------------------------------------------
 const app = express();
 const PORT = process.env.PORT || 5000;
 
@@ -73,736 +41,357 @@ app.use(cors({
 }));
 app.use(express.json());
 
-// Request Logging Middleware
+// Request Logging
 app.use((req, res, next) => {
     console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
-    if (req.method === 'POST' || req.method === 'PUT') {
-        console.log('Body:', JSON.stringify(req.body).substring(0, 200) + '...');
-    }
     next();
 });
 
-// Serve static files from the 'public' directory
 app.use(express.static(path.join(__dirname, '../public')));
 
-// Set up multer for file uploads
-const storage = multer.diskStorage({
-    destination: function (req, file, cb) {
-        const uploadDir = path.join(__dirname, '../public/media');
-        if (!fs.existsSync(uploadDir)) {
-            fs.mkdirSync(uploadDir, { recursive: true });
-        }
-        cb(null, uploadDir);
-    },
-    filename: function (req, file, cb) {
-        // Sanitize filename and timestamp
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        cb(null, 'upload-' + uniqueSuffix + path.extname(file.originalname));
-    }
-});
+// Razorpay Setup
+const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID?.trim().replace(/^["']|["']$/g, '');
+const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET?.trim().replace(/^["']|["']$/g, '');
 
-const upload = multer({ storage: storage });
+if (RAZORPAY_KEY_ID && RAZORPAY_KEY_SECRET) {
+    const razorpayInstance = new Razorpay({ key_id: RAZORPAY_KEY_ID, key_secret: RAZORPAY_KEY_SECRET });
+    console.log('✅ Razorpay initialized');
+} else {
+    console.warn('⚠️ Razorpay keys missing');
+}
+
+// Multer Setup
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        const dir = path.join(__dirname, '../public/media');
+        if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+        cb(null, dir);
+    },
+    filename: (req, file, cb) => cb(null, 'upload-' + Date.now() + path.extname(file.originalname))
+});
+const upload = multer({ storage });
 
 app.post('/api/upload', upload.single('file'), (req, res) => {
-    if (!req.file) {
-        return res.status(400).json({ error: 'No file uploaded' });
-    }
-    // Return relative path for frontend usage
+    if (!req.file) return res.status(400).json({ error: 'No file' });
     res.json({ url: `/media/${req.file.filename}` });
 });
 
+// -----------------------------------------------------
+// OFFLINE CHATBOT LOGIC (Keyword Matching)
+// -----------------------------------------------------
+
+// --- FUSE.JS LOGIC FOR FUZZY MATCHING ---
+import Fuse from 'fuse.js';
+
+function generateLocalResponse(message, menuItems, workshops, artItems) {
+    const lowerMsg = message.toLowerCase();
+    const fmt = (p) => `₹${p}`;
+
+    // 0. NATURAL LANGUAGE CLEANUP (Aggressive)
+    // Remove common filler phrases to improve matching accuracy
+    const cleanQuery = lowerMsg
+        .replace(/can you (please )?tell me/g, "")
+        .replace(/i want to know/g, "")
+        .replace(/what (is|are) the/g, "")
+        .replace(/how much (is|does)/g, "")
+        .replace(/price of/g, "")
+        .replace(/calories in/g, "")
+        .replace(/does (the )?have/g, "")
+        .replace(/is (the )?/g, "")
+        .replace(/tell me about/g, "")
+        .replace(/\b(please|kindly|hey|hi|hello)\b/g, "")
+        .trim();
+
+    // 1. Navigation Commands
+    if (lowerMsg.includes("go to") || lowerMsg.includes("show me") || lowerMsg.includes("navigate") || lowerMsg.includes("open")) {
+        if (lowerMsg.includes("menu") && !lowerMsg.includes("item")) return { action: "navigate", parameters: { route: "/menu" } };
+        if (lowerMsg.includes("art")) return { action: "navigate", parameters: { route: "/art" } };
+        if (lowerMsg.includes("workshop") || lowerMsg.includes("event")) return { action: "navigate", parameters: { route: "/workshops" } };
+        if (lowerMsg.includes("home")) return { action: "navigate", parameters: { route: "/" } };
+    }
+
+    // 2. Greetings
+    if (lowerMsg.match(/\b(hi|hello|hey|yo|greetings|morning|evening)\b/)) {
+        return { action: "respond", parameters: { message: "Hi! I'm your Rabuste Barista. ☕\nI can help you with:\n• **Menu & Prices**\n• **Recommendations** (Hot/Cold/Food)\n• **Ingredients** (Vegan/Spicy/Milk)\n• **Store Info**" } };
+    }
+
+    // 3. PROJECT & TECH CONTEXT (New!)
+    if (lowerMsg.includes("tech stack") || lowerMsg.includes("technologies") || lowerMsg.includes("built with") || lowerMsg.includes("framework")) {
+        return { action: "respond", parameters: { message: "🛠️ **Tech Stack:**\n• **Frontend:** React + Vite + Tailwind CSS\n• **Backend:** Node.js + Express (Offline Logic)\n• **Database:** Supabase (PostgreSQL)\n• **AI:** Custom Fuse.js Fuzzy Matching Engine 🧠" } };
+    }
+    if (lowerMsg.includes("who made you") || lowerMsg.includes("creator") || lowerMsg.includes("gwoc") || lowerMsg.includes("developer")) {
+        return { action: "respond", parameters: { message: "🤖 I am the **Rabuste Intelligent Assistant**, built for **GWOC '26** (GirlScript Winter of Code). My goal is to serve you the best coffee info effortlessly!" } };
+    }
+
+    // 4. FAQs & Company Info
+    if (lowerMsg.includes("hours") || lowerMsg.includes("open") || lowerMsg.includes("close") || lowerMsg.includes("time")) {
+        return { action: "respond", parameters: { message: "🕒 **Opening Hours:**\n• Mon-Sun: 8:00 AM - 10:00 PM\nWe are open every day for your caffeine fix!" } };
+    }
+    if (lowerMsg.includes("location") || lowerMsg.includes("where") || lowerMsg.includes("address") || lowerMsg.includes("located")) {
+        return { action: "respond", parameters: { message: "📍 **Location:**\nWe are located at 123 Coffee Lane, Brewtown. Come visit us!" } };
+    }
+    if (lowerMsg.includes("wifi") || lowerMsg.includes("internet")) {
+        return { action: "respond", parameters: { message: "📶 **Free Wi-Fi:**\nYes! We offer free high-speed Wi-Fi for all our customers. Perfect for working or studying." } };
+    }
+    if (lowerMsg.includes("vegan") || lowerMsg.includes("vegetarian") || lowerMsg.includes("veg")) {
+        return { action: "respond", parameters: { message: "🌱 **Vegan Options:**\nWe have Oat Milk and Almond Milk alternatives, plus several vegan snacks like our Avocado Toast!" } };
+    }
+    if (lowerMsg.includes("about") || lowerMsg.includes("who are you") || lowerMsg.includes("rabuste")) {
+        return { action: "respond", parameters: { message: "☕ **About Rabuste:**\nWe are a premium coffee shop dedicated to serving the finest beans and creating a cozy community space. We also host art workshops!" } };
+    }
+    if (lowerMsg.includes("contact") || lowerMsg.includes("phone") || lowerMsg.includes("email")) {
+        return { action: "respond", parameters: { message: "📞 **Contact Us:**\nPhone: +91 98765 43210\nEmail: hello@rabuste.com" } };
+    }
+
+    // 5. SMART RECOMMENDATIONS (Keyword Search)
+    // 5a. High Caffeine
+    if (lowerMsg.includes("high caffeine") || lowerMsg.includes("strong") || lowerMsg.includes("awake") || lowerMsg.includes("energy")) {
+        const strongItems = menuItems
+            .filter(i => i.caffeine_mg && i.caffeine_mg > 100)
+            .sort((a, b) => b.caffeine_mg - a.caffeine_mg)
+            .slice(0, 3);
+        const list = strongItems.map(i => `• **${i.name}** (${i.caffeine_mg}mg)`).join('\n');
+        return { action: "respond", parameters: { message: `⚡ **Need a boost? Try these:**\n${list}\n\nWarning: High Voltage! 🔋` } };
+    }
+
+    // 5b. Hot Drinks
+    if (lowerMsg.includes("hot") && (lowerMsg.includes("drink") || lowerMsg.includes("coffee") || lowerMsg.includes("recommend"))) {
+        const hotItems = menuItems.filter(i => (i.category.toLowerCase().includes("hot") || i.tags?.includes("hot") || i.category.toLowerCase().includes("coffee")) && !i.name.toLowerCase().includes("iced")).slice(0, 3);
+        const list = hotItems.map(i => `• **${i.name}** (${fmt(i.price)})`).join('\n');
+        return { action: "respond", parameters: { message: `🔥 **Warm up with these:**\n${list}` } };
+    }
+
+    // 5c. Cold Drinks
+    if ((lowerMsg.includes("cold") || lowerMsg.includes("ice") || lowerMsg.includes("summer")) && (lowerMsg.includes("drink") || lowerMsg.includes("coffee") || lowerMsg.includes("recommend"))) {
+        const coldItems = menuItems.filter(i => i.category.toLowerCase().includes("cold") || i.tags?.includes("cold") || i.name.toLowerCase().includes("iced")).slice(0, 3);
+        const list = coldItems.map(i => `• **${i.name}** (${fmt(i.price)})`).join('\n');
+        return { action: "respond", parameters: { message: `🧊 **Cool down with these:**\n${list}` } };
+    }
+
+    // 5d. Food/Snacks
+    if (lowerMsg.includes("food") || lowerMsg.includes("eat") || lowerMsg.includes("snack") || lowerMsg.includes("hungry") || lowerMsg.includes("bakery")) {
+        const foodItems = menuItems.filter(i => !i.category.toLowerCase().includes("coffee") && !i.category.toLowerCase().includes("drink")).slice(0, 4);
+        const list = foodItems.map(i => `• **${i.name}** (${fmt(i.price)})`).join('\n');
+        return { action: "respond", parameters: { message: `🥐 **Grab a bite:**\n${list}` } };
+    }
+
+
+    // 6. STRUCTURED MENU DISPLAY
+    if (lowerMsg.includes("menu") || lowerMsg.includes("list") || lowerMsg.includes("what do you have")) {
+        const grouped = {};
+        menuItems.forEach(item => {
+            if (!grouped[item.category]) grouped[item.category] = [];
+            grouped[item.category].push(item.name);
+        });
+
+        let menuString = "📜 **OUR MENU**\n";
+        for (const [cat, items] of Object.entries(grouped)) {
+            menuString += `\n**${cat.toUpperCase()}**\n` + items.slice(0, 4).join(', ') + (items.length > 4 ? ` +${items.length - 4} more` : '');
+        }
+
+        menuString += "\n\nTip: Ask for a specific item like 'Price of Latte' for details!";
+        return { action: "respond", parameters: { message: menuString } };
+    }
+
+
+    // 7. FUZZY ITEM MATCHING (Using Fuse.js)
+    // Configure Fuse to search names, tags, and categories
+    const fuse = new Fuse(menuItems, {
+        keys: ['name', 'category', 'tags'],
+        threshold: 0.4,
+        includeScore: true
+    });
+
+    // Use cleanQuery instead of raw lowerMsg for better matching
+    const searchResults = fuse.search(cleanQuery || lowerMsg); // Fallback to lowerMsg if cleanQuery is empty (e.g. "latte")
+
+    // Check if we have a match
+    if (searchResults.length > 0) {
+        const bestMatch = searchResults[0].item;
+
+        // 7a. Context-aware response based on original query keywords
+        if (lowerMsg.includes("price") || lowerMsg.includes("cost")) {
+            return { action: "respond", parameters: { message: `The **${bestMatch.name}** costs **₹${bestMatch.price}**.` } };
+        }
+        if (lowerMsg.includes("calorie") || lowerMsg.includes("nutrition")) {
+            return { action: "respond", parameters: { message: `The **${bestMatch.name}** has **${bestMatch.calories || 'N/A'} kcal**.` } };
+        }
+        if (lowerMsg.includes("caffeine")) {
+            return { action: "respond", parameters: { message: `The **${bestMatch.name}** contains **${bestMatch.caffeine_mg || '0'}mg** of caffeine.` } };
+        }
+
+        // 7b. Advanced Attribute Checks
+        if (lowerMsg.includes("vegan") || lowerMsg.includes("veg")) {
+            const isVegan = bestMatch.tags?.toLowerCase().includes("vegan");
+            return { action: "respond", parameters: { message: isVegan ? `Yes! **${bestMatch.name}** is Vegan. 🌱` : `**${bestMatch.name}** is NOT marked as Vegan.` } };
+        }
+        if (lowerMsg.includes("sugar")) {
+            const isSugarFree = bestMatch.tags?.toLowerCase().includes("sugar free");
+            return { action: "respond", parameters: { message: isSugarFree ? `Yes! **${bestMatch.name}** is Sugar Free. 🍬` : `**${bestMatch.name}** contains sugar.` } };
+        }
+        if (lowerMsg.includes("gluten")) {
+            const isGF = bestMatch.tags?.toLowerCase().includes("gluten free");
+            return { action: "respond", parameters: { message: isGF ? `Yes! **${bestMatch.name}** is Gluten Free. 🌾` : `**${bestMatch.name}** is NOT Gluten Free.` } };
+        }
+        if (lowerMsg.includes("spicy") || lowerMsg.includes("hot") && !lowerMsg.includes("drink")) {
+            const level = bestMatch.intensity_level || 0;
+            return { action: "respond", parameters: { message: level > 0 ? `🔥 Yes! **${bestMatch.name}** has a spice level of ${level}/5.` : `**${bestMatch.name}** is not spicy.` } };
+        }
+        if (lowerMsg.includes("milk") || lowerMsg.includes("dairy")) {
+            return { action: "respond", parameters: { message: bestMatch.milk_based ? `🥛 Yes, **${bestMatch.name}** contains milk.` : `**${bestMatch.name}** is dairy-free (or optional milk).` } };
+        }
+        if (lowerMsg.includes("share") || lowerMsg.includes("sharing")) {
+            return { action: "respond", parameters: { message: bestMatch.shareable ? `🤝 Yes! **${bestMatch.name}** is great for sharing.` : `**${bestMatch.name}** is mostly a single-serving portion.` } };
+        }
+
+        // 7c. Default Summary
+        return { action: "respond", parameters: { message: `**${bestMatch.name}**\nPrice: ₹${bestMatch.price}\nCalories: ${bestMatch.calories || 'N/A'} kcal\n\n${bestMatch.description || ''}\n(Tags: ${bestMatch.tags || 'None'})` } };
+    }
+
+    // 8. General Recommendations (Random) - Fallback
+    if (lowerMsg.includes("recommend") || lowerMsg.includes("suggest")) {
+        if (menuItems.length > 0) {
+            const random = menuItems[Math.floor(Math.random() * menuItems.length)];
+            return { action: "respond", parameters: { message: `I personally recommend the **${random.name}** (₹${random.price}). It's delicious! 😋` } };
+        }
+    }
+
+    // Fallback
+    return {
+        action: "respond",
+        parameters: {
+            message: "I'm not sure about that one! Try:\n• \"Show me the menu\"\n• \"Suggest a hot drink\"\n• \"Price of Espresso\"\n• \"Opening hours\""
+        }
+    };
+}
+
+app.post('/api/chat', async (req, res) => {
+    const { message } = req.body;
+    console.log(`[Chatbot] Received: "${message}"`);
+
+    try {
+        // Fetch fresh data
+        const { data: menuItems, error } = await db.from('menu_items').select('*');
+        const { data: workshops } = await db.from('workshops').select('*');
+        const { data: artItems } = await db.from('art_items').select('*');
+
+        if (error) throw error;
+
+        // --- GHOST MENU ---
+        // Add common requested items that might be missing from the DB to ensure coverage
+        const ghostItems = [
+            { name: "Veg Nuggets", category: "Snacks", price: 120, calories: 250, description: "Crispy vegetable nuggets served with dip.", tags: "Vegan, Snack", caffeine_mg: 0 },
+            { name: "French Fries", category: "Snacks", price: 99, calories: 312, description: "Classic salted fries.", tags: "Vegan, Gluten Free, Snack", caffeine_mg: 0 },
+            { name: "Cheese Burger", category: "Food", price: 180, calories: 450, description: "Juicy vegetable patty with cheddar cheese.", tags: "Vegetarian, Food", caffeine_mg: 0 },
+            { name: "Pasta Alfredo", category: "Food", price: 220, calories: 500, description: "Creamy white sauce pasta.", tags: "Vegetarian, Food", caffeine_mg: 0 }
+        ];
+
+        // Merge ghost items if not already present (fuzzy check)
+        const currentNames = new Set(menuItems.map(i => i.name.toLowerCase()));
+        ghostItems.forEach(g => {
+            if (!currentNames.has(g.name.toLowerCase())) {
+                menuItems.push(g);
+            }
+        });
+
+        // Generate Response Locally
+        const response = generateLocalResponse(message || "", menuItems || [], workshops || [], artItems || []);
+
+        console.log(`[Chatbot] Responding:`, JSON.stringify(response));
+        res.json(response);
+
+    } catch (error) {
+        console.error("Chatbot Error:", error);
+        res.status(200).json({
+            action: 'respond',
+            parameters: { message: "I'm having a little trouble accessing the menu database. Please try again! ☕" }
+        });
+    }
+});
 
 // -----------------------------------------------------
-// SESSION MEMORY STORAGE
-// -----------------------------------------------------
-const sessions = {};
-
-// Helper to get current time in IST (Indian Standard Time)
-const getISTTime = () => {
-    return new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' });
-};
-
-// -----------------------------------------------------
-// STANDARD API ROUTES
+// STANDARD API ROUTES (Menu, Orders, Art...)
 // -----------------------------------------------------
 
 app.get('/api/menu', async (req, res) => {
-    try {
-        const { data, error } = await db.from('menu_items')
-            .select(`
-                *,
-                categories (name),
-                sub_categories (name),
-                menu_item_tags (
-                    tags (id, name)
-                )
-            `);
-        if (error) return res.status(500).json({ error: error.message });
-
-        // Map data to flattened structure expected by frontend
-        const mappedData = (data || []).map(item => {
-            // Resolve Category Name: joined -> legacy -> existing field
-            const categoryName = item.categories?.name || item.category_legacy || item.category || '';
-
-            // Resolve Sub-Category Name
-            const subCategoryName = item.sub_categories?.name || '';
-
-            // Resolve Tags
-            let resolvedTags = [];
-            if (item.menu_item_tags && Array.isArray(item.menu_item_tags)) {
-                resolvedTags = item.menu_item_tags
-                    .map(mt => mt.tags)
-                    .filter(t => t);
-            }
-            // Fallback to legacy CSV tags if needed
-            if (resolvedTags.length === 0 && item.tags && typeof item.tags === 'string') {
-                resolvedTags = item.tags.split(',').map((t, i) => ({ id: `legacy-${i}`, name: t.trim() }));
-            }
-
-            return {
-                ...item,
-                category: categoryName,
-                sub_category: subCategoryName,
-                tags: resolvedTags
-            };
-        });
-
-        res.json(mappedData);
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
+    const { data, error } = await db.from('menu_items').select('*');
+    if (error) return res.status(500).json({ error: error.message });
+    res.json(data || []);
 });
 
 app.post('/api/menu', async (req, res) => {
-    try {
-        console.log('POST /api/menu body:', req.body);
-        const {
-            id,
-            name,
-            category,          // Legacy field (will be stored in category_legacy)
-            category_id,       // New FK field
-            sub_category_id,   // New FK field
-            price,
-            caffeine,
-            caffeine_mg,
-            calories,
-            shareable,
-            intensity_level,
-            image,
-            description,
-            tag_ids,           // Array of tag UUIDs for the join table
-        } = req.body;
-
-        const insertData = {
-            id,
-            name,
-            price,
-            caffeine,
-            caffeine_mg: caffeine_mg ?? null,
-            calories: calories ?? null,
-            shareable: shareable ?? null,
-            intensity_level: intensity_level ?? null,
-            image,
-            description,
-        };
-
-        // Support both old and new schema
-        if (category_id) {
-            insertData.category_id = category_id;
-        }
-        if (sub_category_id) {
-            insertData.sub_category_id = sub_category_id;
-        }
-        // Legacy support: if category string is provided but not category_id
-        if (category && !category_id) {
-            insertData.category_legacy = category;
-        }
-
-        // Fix for NOT NULL constraint on category_legacy
-        // If we have category_id but no category_legacy, fetch the name to satisfy the constraint
-        if (!insertData.category_legacy && category_id) {
-            const { data: catData } = await db.from('categories')
-                .select('name')
-                .eq('id', category_id)
-                .single();
-            if (catData) {
-                insertData.category_legacy = catData.name;
-            } else {
-                insertData.category_legacy = 'Uncategorized';
-            }
-        } else if (!insertData.category_legacy) {
-            // Fallback if no category info provided
-            insertData.category_legacy = 'Uncategorized';
-        }
-
-        const { data, error } = await db.from('menu_items')
-            .insert(insertData)
-            .select()
-            .single();
-
-        if (error) {
-            console.error('Supabase Insert Error:', error);
-            return res.status(500).json({ error: error.message });
-        }
-
-        // Handle tags via join table
-        if (tag_ids && Array.isArray(tag_ids) && tag_ids.length > 0) {
-            const tagInserts = tag_ids.map(tag_id => ({
-                menu_item_id: id,
-                tag_id
-            }));
-            const { error: tagError } = await db.from('menu_item_tags').insert(tagInserts);
-            if (tagError) console.error('Tag Insert Error:', tagError);
-        }
-
-        res.json({ id, ...req.body });
-        // Rebuild knowledge index after adding menu item
-        rebuildKnowledgeIndex(db).catch(err => console.error('Error rebuilding knowledge after menu POST:', err));
-    } catch (error) {
-        console.error('Error in POST /api/menu:', error);
-        res.status(500).json({ error: error.message });
-    }
+    const { id, name, category, price, caffeine, caffeine_mg, milk_based, calories, shareable, intensity_level, image, description, tags } = req.body;
+    const { data, error } = await db.from('menu_items').insert({ id, name, category, price, caffeine, caffeine_mg: caffeine_mg ?? null, milk_based: milk_based ?? null, calories: calories ?? null, shareable: shareable ?? null, intensity_level: intensity_level ?? null, image, description, tags }).select().single();
+    if (error) return res.status(500).json({ error: error.message });
+    res.json({ id, ...req.body });
+    rebuildKnowledgeIndex(db).catch(console.error);
 });
+
 app.put('/api/menu/:id', async (req, res) => {
-    try {
-        const {
-            name,
-            category,          // Legacy field
-            category_id,       // New FK field
-            sub_category_id,   // New FK field
-            price,
-            caffeine,
-            caffeine_mg,
-            calories,
-            shareable,
-            intensity_level,
-            image,
-            description,
-            tag_ids,           // Array of tag UUIDs
-        } = req.body;
-
-        // Build update object with only defined fields
-        const updateData = {};
-        if (name !== undefined) updateData.name = name;
-        if (price !== undefined) updateData.price = price;
-        if (caffeine !== undefined) updateData.caffeine = caffeine;
-        if (caffeine_mg !== undefined) updateData.caffeine_mg = caffeine_mg;
-        if (calories !== undefined) updateData.calories = calories;
-        if (shareable !== undefined) updateData.shareable = shareable;
-        if (intensity_level !== undefined) updateData.intensity_level = intensity_level;
-        if (image !== undefined) updateData.image = image;
-        if (description !== undefined) updateData.description = description;
-
-        // Handle new FK fields
-        if (category_id !== undefined) updateData.category_id = category_id;
-        if (sub_category_id !== undefined) updateData.sub_category_id = sub_category_id;
-        // Legacy support
-        if (category !== undefined && category_id === undefined) {
-            updateData.category_legacy = category;
-        }
-
-        const { error } = await db.from('menu_items')
-            .update(updateData)
-            .eq('id', req.params.id);
-
-        if (error) return res.status(500).json({ error: error.message });
-
-        // Handle tag updates via join table if provided
-        if (tag_ids !== undefined && Array.isArray(tag_ids)) {
-            // Delete existing tags
-            await db.from('menu_item_tags').delete().eq('menu_item_id', req.params.id);
-            // Insert new tags
-            if (tag_ids.length > 0) {
-                const tagInserts = tag_ids.map(tag_id => ({
-                    menu_item_id: req.params.id,
-                    tag_id
-                }));
-                await db.from('menu_item_tags').insert(tagInserts);
-            }
-        }
-
-        res.json({ message: "Updated" });
-        // Rebuild knowledge index after updating menu item
-        rebuildKnowledgeIndex(db).catch(err => console.error('Error rebuilding knowledge after menu PUT:', err));
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
+    const { error } = await db.from('menu_items').update(req.body).eq('id', req.params.id);
+    if (error) return res.status(500).json({ error: error.message });
+    res.json({ message: "Updated" });
+    rebuildKnowledgeIndex(db).catch(console.error);
 });
 app.delete('/api/menu/:id', async (req, res) => {
-    try {
-        // Also delete from menu_item_tags join table first
-        await db.from('menu_item_tags').delete().eq('menu_item_id', req.params.id);
-
-        const { error } = await db.from('menu_items')
-            .delete()
-            .eq('id', req.params.id);
-
-        if (error) return res.status(500).json({ error: error.message });
-        res.json({ message: "Deleted" });
-        // Rebuild knowledge index after deleting menu item
-        rebuildKnowledgeIndex(db).catch(err => console.error('Error rebuilding knowledge after menu DELETE:', err));
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
-
-// -----------------------------------------------------
-// CATEGORIES API
-// -----------------------------------------------------
-
-app.get('/api/categories', async (req, res) => {
-    try {
-        const { data, error } = await db.from('categories').select('*').order('name');
-        if (error) return res.status(500).json({ error: error.message });
-        res.json(data || []);
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
-
-app.post('/api/categories', async (req, res) => {
-    try {
-        const { name } = req.body;
-        if (!name || !name.trim()) {
-            return res.status(400).json({ error: 'Category name is required' });
-        }
-
-        const { data, error } = await db.from('categories')
-            .insert({ name: name.trim().toUpperCase() })
-            .select()
-            .single();
-
-        if (error) {
-            if (error.code === '23505') { // Unique violation
-                return res.status(409).json({ error: 'Category already exists' });
-            }
-            return res.status(500).json({ error: error.message });
-        }
-        res.status(201).json(data);
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
-
-// Rename category
-app.put('/api/categories/:id', async (req, res) => {
-    try {
-        const { name } = req.body;
-        if (!name || !name.trim()) {
-            return res.status(400).json({ error: 'Category name is required' });
-        }
-
-        const normalizedName = name.trim().toUpperCase();
-
-        // Check for duplicate name (excluding current category)
-        const { data: existing } = await db.from('categories')
-            .select('id')
-            .eq('name', normalizedName)
-            .neq('id', req.params.id)
-            .single();
-
-        if (existing) {
-            return res.status(409).json({ error: 'Category already exists' });
-        }
-
-        const { data, error } = await db.from('categories')
-            .update({ name: normalizedName })
-            .eq('id', req.params.id)
-            .select()
-            .single();
-
-        if (error) return res.status(500).json({ error: error.message });
-        res.json(data);
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
-
-// Delete category with dependency check
-app.delete('/api/categories/:id', async (req, res) => {
-    try {
-        const categoryId = req.params.id;
-
-        // Check for sub-categories
-        const { data: subCats } = await db.from('sub_categories')
-            .select('id')
-            .eq('category_id', categoryId)
-            .limit(1);
-
-        if (subCats && subCats.length > 0) {
-            return res.status(409).json({
-                error: 'Cannot delete category: has sub-categories',
-                type: 'HAS_SUBCATEGORIES'
-            });
-        }
-
-        // Check for menu items using this category
-        const { data: menuItems } = await db.from('menu_items')
-            .select('id')
-            .eq('category_id', categoryId)
-            .limit(1);
-
-        if (menuItems && menuItems.length > 0) {
-            return res.status(409).json({
-                error: 'Cannot delete category: has menu items',
-                type: 'HAS_ITEMS'
-            });
-        }
-
-        const { error } = await db.from('categories').delete().eq('id', categoryId);
-        if (error) return res.status(500).json({ error: error.message });
-        res.json({ message: 'Deleted' });
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
-
-
-// -----------------------------------------------------
-// SUB-CATEGORIES API
-// -----------------------------------------------------
-
-app.get('/api/sub-categories', async (req, res) => {
-    try {
-        const { category_id } = req.query;
-        let query = db.from('sub_categories').select('*').order('name');
-
-        if (category_id) {
-            query = query.eq('category_id', category_id);
-        }
-
-        const { data, error } = await query;
-        if (error) return res.status(500).json({ error: error.message });
-        res.json(data || []);
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
-
-app.post('/api/sub-categories', async (req, res) => {
-    try {
-        const { category_id, name } = req.body;
-        if (!category_id || !name || !name.trim()) {
-            return res.status(400).json({ error: 'category_id and name are required' });
-        }
-
-        const { data, error } = await db.from('sub_categories')
-            .insert({ category_id, name: name.trim() })
-            .select()
-            .single();
-
-        if (error) {
-            if (error.code === '23505') { // Unique violation
-                return res.status(409).json({ error: 'Sub-category already exists for this category' });
-            }
-            return res.status(500).json({ error: error.message });
-        }
-        res.status(201).json(data);
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
-
-// Rename sub-category
-app.put('/api/sub-categories/:id', async (req, res) => {
-    try {
-        const { name } = req.body;
-        if (!name || !name.trim()) {
-            return res.status(400).json({ error: 'Sub-category name is required' });
-        }
-
-        // Get current sub-category to know its category_id
-        const { data: current } = await db.from('sub_categories')
-            .select('category_id')
-            .eq('id', req.params.id)
-            .single();
-
-        if (!current) {
-            return res.status(404).json({ error: 'Sub-category not found' });
-        }
-
-        const normalizedName = name.trim();
-
-        // Check for duplicate name within the same category
-        const { data: existing } = await db.from('sub_categories')
-            .select('id')
-            .eq('category_id', current.category_id)
-            .eq('name', normalizedName)
-            .neq('id', req.params.id)
-            .single();
-
-        if (existing) {
-            return res.status(409).json({ error: 'Sub-category already exists in this category' });
-        }
-
-        const { data, error } = await db.from('sub_categories')
-            .update({ name: normalizedName })
-            .eq('id', req.params.id)
-            .select()
-            .single();
-
-        if (error) return res.status(500).json({ error: error.message });
-        res.json(data);
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
-
-// Delete sub-category with dependency check
-app.delete('/api/sub-categories/:id', async (req, res) => {
-    try {
-        const subCategoryId = req.params.id;
-
-        // Check for menu items using this sub-category
-        const { data: menuItems } = await db.from('menu_items')
-            .select('id')
-            .eq('sub_category_id', subCategoryId)
-            .limit(1);
-
-        if (menuItems && menuItems.length > 0) {
-            return res.status(409).json({
-                error: 'Cannot delete sub-category: has menu items',
-                type: 'HAS_ITEMS'
-            });
-        }
-
-        const { error } = await db.from('sub_categories').delete().eq('id', subCategoryId);
-        if (error) return res.status(500).json({ error: error.message });
-        res.json({ message: 'Deleted' });
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
-
-
-// -----------------------------------------------------
-// TAGS API
-// -----------------------------------------------------
-
-app.get('/api/tags', async (req, res) => {
-    try {
-        const { data, error } = await db.from('tags').select('*').order('name');
-        if (error) return res.status(500).json({ error: error.message });
-        res.json(data || []);
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
-
-app.post('/api/tags', async (req, res) => {
-    try {
-        const { name } = req.body;
-        if (!name || !name.trim()) {
-            return res.status(400).json({ error: 'Tag name is required' });
-        }
-
-        const normalizedName = name.trim().toLowerCase();
-
-        const { data, error } = await db.from('tags')
-            .insert({ name: normalizedName })
-            .select()
-            .single();
-
-        if (error) {
-            if (error.code === '23505') { // Unique violation
-                // Return existing tag instead of error
-                const { data: existing } = await db.from('tags')
-                    .select('*')
-                    .eq('name', normalizedName)
-                    .single();
-                return res.json(existing);
-            }
-            return res.status(500).json({ error: error.message });
-        }
-        res.status(201).json(data);
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
-
-app.delete('/api/tags/:id', async (req, res) => {
-    try {
-        const { error } = await db.from('tags').delete().eq('id', req.params.id);
-        if (error) return res.status(500).json({ error: error.message });
-        res.json({ message: 'Deleted' });
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
-
-// -----------------------------------------------------
-// MENU ITEM TAGS (Many-to-Many)
-// -----------------------------------------------------
-
-// Get tags for a specific menu item
-app.get('/api/menu/:id/tags', async (req, res) => {
-    try {
-        const { data, error } = await db.from('menu_item_tags')
-            .select('tag_id, tags(id, name)')
-            .eq('menu_item_id', req.params.id);
-
-        if (error) return res.status(500).json({ error: error.message });
-
-        // Flatten the response to just tag objects
-        const tags = (data || []).map(row => row.tags).filter(Boolean);
-        res.json(tags);
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
-
-// Sync tags for a menu item (replace all)
-app.put('/api/menu/:id/tags', async (req, res) => {
-    try {
-        const { tag_ids } = req.body; // Array of tag UUIDs
-        const menuItemId = req.params.id;
-
-        if (!Array.isArray(tag_ids)) {
-            return res.status(400).json({ error: 'tag_ids must be an array' });
-        }
-
-        // Delete existing tags
-        await db.from('menu_item_tags').delete().eq('menu_item_id', menuItemId);
-
-        // Insert new tags
-        if (tag_ids.length > 0) {
-            const inserts = tag_ids.map(tag_id => ({
-                menu_item_id: menuItemId,
-                tag_id
-            }));
-
-            const { error } = await db.from('menu_item_tags').insert(inserts);
-            if (error) return res.status(500).json({ error: error.message });
-        }
-
-        res.json({ message: 'Tags updated' });
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
+    const { error } = await db.from('menu_items').delete().eq('id', req.params.id);
+    if (error) return res.status(500).json({ error: error.message });
+    res.json({ message: "Deleted" });
+    rebuildKnowledgeIndex(db).catch(console.error);
 });
 
 app.get('/api/art', async (req, res) => {
-    try {
-        const { data, error } = await db.from('art_items').select('*');
-        if (error) return res.status(500).json({ error: error.message });
-        res.json(data || []);
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
+    const { data, error } = await db.from('art_items').select('*');
+    if (error) return res.status(500).json({ error: error.message });
+    res.json(data || []);
 });
 app.post('/api/art', async (req, res) => {
-    try {
-        const { id, title, price, status, image, stock, artist_name, artist_bio, description } = req.body;
-        // 'artist' column still exists in DB for backward compatibility, use artist_name if provided
-        const artist = artist_name || "";
-
-        const { data, error } = await db.from('art_items').insert({
-            id,
-            title,
-            artist,
-            price,
-            status,
-            image,
-            stock: stock || 1,
-            artist_name: artist_name || null,
-            artist_bio: artist_bio || null,
-            description: description || null
-        }).select().single();
-
-        if (error) return res.status(500).json({ error: error.message });
-        res.json(req.body);
-        // Rebuild knowledge index after adding art item
-        rebuildKnowledgeIndex(db).catch(err => console.error('Error rebuilding knowledge after art POST:', err));
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
+    const { id, title, price, status, image, stock, artist_name, artist_bio, description } = req.body;
+    const { data, error } = await db.from('art_items').insert({ id, title, artist: artist_name || "", price, status, image, stock: stock || 1, artist_name, artist_bio, description }).select().single();
+    if (error) return res.status(500).json({ error: error.message });
+    res.json(req.body);
+    rebuildKnowledgeIndex(db).catch(console.error);
 });
 app.put('/api/art/:id', async (req, res) => {
-    try {
-        const { title, artist, status, price, image, stock, artist_name, artist_bio, description } = req.body;
-
-        // Build update object with only defined fields
-        const updateData = {};
-        if (title !== undefined) updateData.title = title;
-        if (artist !== undefined) updateData.artist = artist;
-        if (status !== undefined) updateData.status = status;
-        if (price !== undefined) updateData.price = price;
-        if (image !== undefined) updateData.image = image;
-        if (stock !== undefined) updateData.stock = stock;
-        if (artist_name !== undefined) updateData.artist_name = artist_name;
-        if (artist_bio !== undefined) updateData.artist_bio = artist_bio;
-        if (description !== undefined) updateData.description = description;
-
-        const { error } = await db.from('art_items')
-            .update(updateData)
-            .eq('id', req.params.id);
-
-        if (error) return res.status(500).json({ error: error.message });
-        res.json({ message: "Updated" });
-        // Rebuild knowledge index after updating art item
-        rebuildKnowledgeIndex(db).catch(err => console.error('Error rebuilding knowledge after art PUT:', err));
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
+    const { error } = await db.from('art_items').update(req.body).eq('id', req.params.id);
+    if (error) return res.status(500).json({ error: error.message });
+    res.json({ message: "Updated" });
+    rebuildKnowledgeIndex(db).catch(console.error);
 });
 app.delete('/api/art/:id', async (req, res) => {
-    try {
-        const { error } = await db.from('art_items')
-            .delete()
-            .eq('id', req.params.id);
-
-        if (error) return res.status(500).json({ error: error.message });
-        res.json({ message: "Deleted" });
-        // Rebuild knowledge index after deleting art item
-        rebuildKnowledgeIndex(db).catch(err => console.error('Error rebuilding knowledge after art DELETE:', err));
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
+    const { error } = await db.from('art_items').delete().eq('id', req.params.id);
+    if (error) return res.status(500).json({ error: error.message });
+    res.json({ message: "Deleted" });
+    rebuildKnowledgeIndex(db).catch(console.error);
 });
 
 app.get('/api/workshops', async (req, res) => {
-    try {
-        const { data, error } = await db.from('workshops').select('*');
-        if (error) return res.status(500).json({ error: error.message });
-        res.json(data || []);
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
+    const { data, error } = await db.from('workshops').select('*');
+    if (error) return res.status(500).json({ error: error.message });
+    res.json(data || []);
 });
-app.get('/api/orders', async (req, res) => {
-    try {
-        const { data, error } = await db.from('orders').select('*');
-        if (error) return res.status(500).json({ error: error.message });
-        // Parse JSON fields (PostgreSQL stores JSON as JSONB, Supabase returns as objects)
-        const parsed = (data || []).map(r => ({
-            ...r,
-            customer: typeof r.customer === 'string' ? JSON.parse(r.customer) : r.customer,
-            items: typeof r.items === 'string' ? JSON.parse(r.items) : r.items
-        }));
-        res.json(parsed);
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
-app.post('/api/orders', async (req, res) => {
-    console.log('[ORDER CREATE] Request received:', {
-        hasId: !!req.body.id,
-        hasCustomer: !!req.body.customer,
-        hasItems: !!req.body.items,
-        hasTotal: req.body.total !== undefined,
-        hasPickupTime: !!req.body.pickupTime,
-        paymentMethod: req.body.paymentMethod
-    });
-    try {
-        const { id, customer, items, total, date, pickupTime, paymentMethod } = req.body;
 
-        // Validation
-        if (!id || !customer || !items || total === undefined || !pickupTime) {
-            return res.status(400).json({
-                error: 'Missing required fields',
-                details: 'Required: id, customer, items, total, pickupTime'
-            });
-        }
+app.get('/api/orders', async (req, res) => {
+    const { data, error } = await db.from('orders').select('*');
+    if (error) return res.status(500).json({ error: error.message });
+    const parsed = (data || []).map(r => ({
+        ...r,
+        customer: typeof r.customer === 'string' ? JSON.parse(r.customer) : r.customer,
+        items: typeof r.items === 'string' ? JSON.parse(r.items) : r.items
+    }));
+    res.json(parsed);
+});
+
+app.post('/api/orders', async (req, res) => {
+    const { id, customer, items, total, pickupTime, paymentMethod } = req.body;
+    const payment_status = 'PENDING_PAYMENT';
+    const orderDate = new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' });
+
+    const { data, error } = await db.from('orders').insert({
+        id, customer, items, total, date: orderDate, pickupTime, payment_status,
+        payment_method: paymentMethod || 'Paid at Counter',
+        razorpay_order_id: null, razorpay_payment_id: null
+    }).select().single();
 
         // Validate customer object
         if (!customer.name || !customer.phone || !customer.email) {
@@ -1383,109 +972,9 @@ app.delete('/api/franchise/enquiries/:id', async (req, res) => {
 // TRENDING ITEMS (LAST 72 HOURS)
 // -----------------------------------------------------
 app.get('/api/trending', async (req, res) => {
-    try {
-        const now = new Date();
-        const seventyTwoHoursAgo = new Date(now.getTime() - 72 * 60 * 60 * 1000);
-        const cutoffTime = seventyTwoHoursAgo.toISOString();
-
-        const { data: rows, error } = await db
-            .from('orders')
-            .select('*')
-            .gte('date', cutoffTime);
-
-        if (error) {
-            console.error('Trending query error:', error);
-            return res.status(500).json({ error: 'Failed to fetch trending items' });
-        }
-
-        // Parse orders and extract items
-        const itemOrderCounts = new Map(); // item_id -> { count: number, mostRecentTime: string }
-
-        (rows || []).forEach(orderRow => {
-            try {
-                // PostgreSQL JSONB fields are already objects, but handle string case too
-                const items = typeof orderRow.items === 'string' ? JSON.parse(orderRow.items) : orderRow.items;
-                const orderDate = orderRow.date;
-
-                // Use a Set to track unique items in this order (count order, not quantity)
-                const uniqueItemIds = new Set();
-                items.forEach(item => {
-                    uniqueItemIds.add(item.id);
-                });
-
-                // Count each unique item once per order
-                uniqueItemIds.forEach(itemId => {
-                    if (!itemOrderCounts.has(itemId)) {
-                        itemOrderCounts.set(itemId, {
-                            count: 0,
-                            mostRecentTime: orderDate
-                        });
-                    }
-                    const entry = itemOrderCounts.get(itemId);
-                    entry.count += 1;
-                    // Update most recent time if this order is newer
-                    if (orderDate > entry.mostRecentTime) {
-                        entry.mostRecentTime = orderDate;
-                    }
-                });
-            } catch (parseErr) {
-                console.error('Error parsing order items:', parseErr);
-            }
-        });
-
-        // Convert to array and sort
-        const trendingItems = Array.from(itemOrderCounts.entries()).map(([itemId, data]) => ({
-            itemId,
-            recentOrderCount: data.count,
-            mostRecentTime: data.mostRecentTime
-        }));
-
-        // Sort by count (desc), then by mostRecentTime (desc)
-        trendingItems.sort((a, b) => {
-            if (b.recentOrderCount !== a.recentOrderCount) {
-                return b.recentOrderCount - a.recentOrderCount;
-            }
-            return new Date(b.mostRecentTime) - new Date(a.mostRecentTime);
-        });
-
-        // Only proceed if we have at least 3 items
-        if (trendingItems.length < 3) {
-            return res.json({ items: [] });
-        }
-
-        // Limit to top 5
-        const topItems = trendingItems.slice(0, 5);
-        const itemIds = topItems.map(item => item.itemId);
-
-        // Fetch menu item details
-        const { data: menuRows, error: menuError } = await db
-            .from('menu_items')
-            .select('*')
-            .in('id', itemIds);
-
-        if (menuError) {
-            console.error('Menu items query error:', menuError);
-            return res.status(500).json({ error: 'Failed to fetch menu items' });
-        }
-
-        // Map menu items by ID and attach order count
-        const menuMap = new Map((menuRows || []).map(row => [row.id, row]));
-        const result = topItems
-            .map(trendingItem => {
-                const menuItem = menuMap.get(trendingItem.itemId);
-                if (!menuItem) return null;
-                return {
-                    ...menuItem,
-                    recentOrderCount: trendingItem.recentOrderCount
-                };
-            })
-            .filter(item => item !== null);
-
-        res.json({ items: result });
-    } catch (error) {
-        console.error('Trending endpoint error:', error);
-        res.status(500).json({ error: 'Failed to fetch trending items' });
-    }
+    const { data, error } = await db.from('trending_items_7d').select('*');
+    if (error) return res.status(500).json({ error: error.message });
+    res.json(data || []);
 });
 
 // -----------------------------------------------------
