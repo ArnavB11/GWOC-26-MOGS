@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion as motionBase } from 'framer-motion';
-import { Search, ArrowLeft, Clock, CheckCircle2, Package, ChefHat } from 'lucide-react';
+import { Search, ArrowLeft, Clock, Package, ChefHat } from 'lucide-react';
 import { Page } from '../types';
 import { API_BASE_URL } from '../config';
 
@@ -37,6 +37,37 @@ const TrackOrderPage: React.FC<TrackOrderPageProps> = ({ onNavigate }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searched, setSearched] = useState(false);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+  // Periodically refresh status display to show automatic updates
+  useEffect(() => {
+    if (!searched || orders.length === 0) return;
+
+    const interval = setInterval(() => {
+      setRefreshTrigger(prev => prev + 1);
+    }, 5000); // Update every 5 seconds
+
+    return () => clearInterval(interval);
+  }, [searched, orders.length]);
+
+  // Calculate displayed status based on elapsed time (auto-update from placed to preparing)
+  const getDisplayStatus = (order: Order): string => {
+    const orderDate = new Date(order.date).getTime();
+    const now = Date.now();
+    const elapsed = now - orderDate;
+    const twoMinutes = 2 * 60 * 1000; // 2 minutes in milliseconds
+
+    // If order is "placed" and 2 minutes have passed, show as "preparing"
+    if (order.status === 'placed' && elapsed >= twoMinutes) {
+      return 'preparing';
+    }
+    // If status is "ready", show as "ready"
+    if (order.status === 'ready') {
+      return 'ready';
+    }
+    // Otherwise show the actual status
+    return order.status;
+  };
 
   const getStatusIcon = (status: string) => {
     if (!status) return <Package className="w-4 h-4" />;
@@ -47,8 +78,6 @@ const TrackOrderPage: React.FC<TrackOrderPageProps> = ({ onNavigate }) => {
         return <ChefHat className="w-4 h-4" />;
       case 'ready':
         return <Clock className="w-4 h-4" />;
-      case 'completed':
-        return <CheckCircle2 className="w-4 h-4" />;
       default:
         return <Package className="w-4 h-4" />;
     }
@@ -63,8 +92,6 @@ const TrackOrderPage: React.FC<TrackOrderPageProps> = ({ onNavigate }) => {
         return 'bg-yellow-100 text-yellow-800';
       case 'ready':
         return 'bg-green-100 text-green-800';
-      case 'completed':
-        return 'bg-black text-white';
       default:
         return 'bg-zinc-200 text-zinc-700';
     }
@@ -178,9 +205,9 @@ const TrackOrderPage: React.FC<TrackOrderPageProps> = ({ onNavigate }) => {
                       <div>
                         <div className="flex items-center gap-3 mb-2">
                           <h3 className="font-serif text-lg">Order #{order.id.slice(-8)}</h3>
-                          <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] uppercase tracking-[0.2em] font-sans font-medium ${getStatusColor(order.status)}`}>
-                            {getStatusIcon(order.status)}
-                            {order.status}
+                          <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] uppercase tracking-[0.2em] font-sans font-medium ${getStatusColor(getDisplayStatus(order))}`}>
+                            {getStatusIcon(getDisplayStatus(order))}
+                            {getDisplayStatus(order)}
                           </span>
                         </div>
                         <p className="text-xs text-zinc-500 font-sans">

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion as motionBase } from 'framer-motion';
-import { Lock, Package, ChefHat, Clock, CheckCircle2 } from 'lucide-react';
+import { Lock, Package, ChefHat, Clock } from 'lucide-react';
 import { Page } from '../types';
 import { API_BASE_URL } from '../config';
 
@@ -38,8 +38,7 @@ const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({ onNavigate, onBac
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
-  const [statusUpdates, setStatusUpdates] = useState<Record<string, string>>({});
+  const [markingReadyId, setMarkingReadyId] = useState<string | null>(null);
 
   const EMPLOYEE_PIN = '0022';
 
@@ -83,7 +82,6 @@ const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({ onNavigate, onBac
       sessionStorage.removeItem('rabuste_employee_auth');
       setIsAuthenticated(false);
       setOrders([]);
-      setStatusUpdates({});
       // Navigate to home
       onBack();
     };
@@ -102,13 +100,9 @@ const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({ onNavigate, onBac
       const response = await fetch(`${API_BASE_URL}/api/orders/active`);
       if (!response.ok) throw new Error('Failed to fetch orders');
       const data = await response.json();
-      setOrders(data || []);
-      // Initialize status updates with current statuses
-      const initialStatuses: Record<string, string> = {};
-      (data || []).forEach((order: Order) => {
-        initialStatuses[order.id] = order.status;
-      });
-      setStatusUpdates(initialStatuses);
+      // Filter out orders with status "ready" - employees don't see ready orders
+      const filteredOrders = (data || []).filter((order: Order) => order.status !== 'ready' && order.status !== 'completed');
+      setOrders(filteredOrders);
     } catch (err: any) {
       setError(err.message || 'Failed to load orders');
     } finally {
@@ -130,33 +124,94 @@ const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({ onNavigate, onBac
     }
   };
 
-  const handleStatusChange = (orderId: string, newStatus: string) => {
-    setStatusUpdates(prev => ({
-      ...prev,
-      [orderId]: newStatus
-    }));
+  // Calculate displayed status based on elapsed time (auto-update from placed to preparing)
+  const getDisplayStatus = (order: Order): string => {
+    const orderDate = new Date(order.date).getTime();
+    const now = Date.now();
+    const elapsed = now - orderDate;
+    const twoMinutes = 2 * 60 * 1000; // 2 minutes in milliseconds
+
+    // If order is "placed" and 2 minutes have passed, show as "preparing"
+    if (order.status === 'placed' && elapsed >= twoMinutes) {
+      return 'preparing';
+    }
+    return order.status;
   };
 
-  const handleUpdateStatus = async (orderId: string) => {
-    const newStatus = statusUpdates[orderId];
-    if (!newStatus) return;
+  // Auto-update status from placed to preparing (client-side)
+  useEffect(() => {
+    if (!isAuthenticated || orders.length === 0) return;
 
-    setUpdatingOrderId(orderId);
+    const updateStatuses = async () => {
+      const now = Date.now();
+      const twoMinutes = 2 * 60 * 1000;
+      let hasUpdates = false;
+      const ordersToUpdate: string[] = [];
+
+      // Check which orders need updating
+      orders.forEach((order) => {
+        if (order.status === 'placed') {
+          const orderDate = new Date(order.date).getTime();
+          const elapsed = now - orderDate;
+          if (elapsed >= twoMinutes) {
+            ordersToUpdate.push(order.id);
+            hasUpdates = true;
+          }
+        }
+      });
+
+      // Update orders that need status change
+      if (hasUpdates) {
+        try {
+          await Promise.all(
+            ordersToUpdate.map(async (orderId) => {
+              try {
+                const response = await fetch(`${API_BASE_URL}/api/orders/${orderId}/status`, {
+                  method: 'PUT',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ status: 'preparing', updated_by: 'system' })
+                });
+                if (response.ok) {
+                  // Update local state
+                  setOrders(prevOrders => 
+                    prevOrders.map(order => 
+                      order.id === orderId ? { ...order, status: 'preparing' } : order
+                    )
+                  );
+                }
+              } catch (err) {
+                console.error('Failed to auto-update status:', err);
+              }
+            })
+          );
+        } catch (err) {
+          console.error('Error updating statuses:', err);
+        }
+      }
+    };
+
+    // Check every 5 seconds
+    const interval = setInterval(updateStatuses, 5000);
+    return () => clearInterval(interval);
+  }, [isAuthenticated, orders]);
+
+  const handleMarkReady = async (orderId: string) => {
+    setMarkingReadyId(orderId);
     try {
       const response = await fetch(`${API_BASE_URL}/api/orders/${orderId}/status`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus, updated_by: 'employee' })
+        body: JSON.stringify({ status: 'ready', updated_by: 'employee' })
       });
 
-      if (!response.ok) throw new Error('Failed to update status');
+      if (!response.ok) throw new Error('Failed to mark order as ready');
 
-      // Refresh orders
+      // Refresh orders - ready orders will be filtered out
       await fetchActiveOrders();
     } catch (err: any) {
-      setError(err.message || 'Failed to update status');
+      setError(err.message || 'Failed to mark order as ready');
     } finally {
-      setUpdatingOrderId(null);
+      setMarkingReadyId(null);
     }
   };
 
@@ -164,7 +219,6 @@ const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({ onNavigate, onBac
     setIsAuthenticated(false);
     sessionStorage.removeItem('rabuste_employee_auth');
     setOrders([]);
-    setStatusUpdates({});
   };
 
   const getStatusIcon = (status: string) => {
@@ -176,8 +230,6 @@ const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({ onNavigate, onBac
         return <ChefHat className="w-4 h-4" />;
       case 'ready':
         return <Clock className="w-4 h-4" />;
-      case 'completed':
-        return <CheckCircle2 className="w-4 h-4" />;
       default:
         return <Package className="w-4 h-4" />;
     }
@@ -294,8 +346,8 @@ const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({ onNavigate, onBac
                     <div className="flex items-center gap-3 mb-2">
                       <h3 className="font-serif text-lg">Order #{order.id.slice(-8)}</h3>
                       <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] uppercase tracking-[0.2em] font-sans font-medium bg-zinc-100 text-zinc-700">
-                        {getStatusIcon(order.status)}
-                        {order.status}
+                        {getStatusIcon(getDisplayStatus(order))}
+                        {getDisplayStatus(order)}
                       </span>
                     </div>
                     <p className="text-xs text-zinc-500 font-sans mb-1">
@@ -337,29 +389,18 @@ const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({ onNavigate, onBac
                   </div>
                 </div>
 
-                {/* Status Update Section */}
-                <div className="border-t border-black/5 pt-4 flex flex-col sm:flex-row gap-3 items-start sm:items-center">
-                  <div className="flex-1">
-                    <label className="block text-[11px] uppercase tracking-[0.25em] mb-2 font-sans">Update Status</label>
-                    <select
-                      value={statusUpdates[order.id] || order.status}
-                      onChange={(e) => handleStatusChange(order.id, e.target.value)}
-                      className="w-full bg-transparent border border-black/20 rounded-md px-3 py-2 outline-none focus:border-black text-sm font-sans"
+                {/* Ready Button - Show for orders in placed or preparing status */}
+                {(getDisplayStatus(order) === 'placed' || getDisplayStatus(order) === 'preparing') && (
+                  <div className="border-t border-black/5 pt-4">
+                    <button
+                      onClick={() => handleMarkReady(order.id)}
+                      disabled={markingReadyId === order.id}
+                      className="px-4 py-1.5 bg-[#0a0a0a] text-[#F9F8F4] text-[10px] uppercase tracking-[0.3em] font-sans rounded-lg hover:bg-black transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
                     >
-                      <option value="placed">Placed</option>
-                      <option value="preparing">Preparing</option>
-                      <option value="ready">Ready</option>
-                      <option value="completed">Completed</option>
-                    </select>
+                      {markingReadyId === order.id ? 'Marking Ready...' : 'Ready?'}
+                    </button>
                   </div>
-                  <button
-                    onClick={() => handleUpdateStatus(order.id)}
-                    disabled={updatingOrderId === order.id || (statusUpdates[order.id] || order.status) === order.status}
-                    className="px-6 py-2 bg-[#0a0a0a] text-[#F9F8F4] text-[10px] uppercase tracking-[0.3em] font-sans rounded-lg hover:bg-black transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-                  >
-                    {updatingOrderId === order.id ? 'Updating...' : 'Update Status'}
-                  </button>
-                </div>
+                )}
               </motion.div>
             ))}
           </div>
