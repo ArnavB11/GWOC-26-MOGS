@@ -358,6 +358,93 @@ app.put('/api/art/:id', async (req, res) => {
     res.json({ message: "Updated" });
     rebuildKnowledgeIndex(db).catch(console.error);
 });
+// Decrement stock for art item (when added to cart)
+app.post('/api/art/:id/decrement-stock', async (req, res) => {
+    try {
+        const artId = req.params.id;
+        
+        // Get current stock
+        const { data: artItem, error: fetchError } = await db
+            .from('art_items')
+            .select('id, stock, status')
+            .eq('id', artId)
+            .single();
+
+        if (fetchError || !artItem) {
+            return res.status(404).json({ error: 'Art item not found' });
+        }
+
+        const currentStock = parseInt(String(artItem.stock)) || 0;
+        
+        if (currentStock <= 0) {
+            return res.status(400).json({ error: 'Item is out of stock' });
+        }
+
+        const newStock = currentStock - 1;
+        const newStatus = newStock > 0 ? 'Available' : 'Sold';
+
+        // Update stock and status
+        const { data: updatedItem, error: updateError } = await db
+            .from('art_items')
+            .update({ 
+                stock: newStock,
+                status: newStatus
+            })
+            .eq('id', artId)
+            .select()
+            .single();
+
+        if (updateError) {
+            return res.status(500).json({ error: updateError.message });
+        }
+
+        res.json(updatedItem);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Increment stock for art item (when removed from cart)
+app.post('/api/art/:id/increment-stock', async (req, res) => {
+    try {
+        const artId = req.params.id;
+        
+        // Get current stock
+        const { data: artItem, error: fetchError } = await db
+            .from('art_items')
+            .select('id, stock, status')
+            .eq('id', artId)
+            .single();
+
+        if (fetchError || !artItem) {
+            return res.status(404).json({ error: 'Art item not found' });
+        }
+
+        const currentStock = parseInt(String(artItem.stock)) || 0;
+        const newStock = currentStock + 1;
+        const newStatus = 'Available'; // Always available when stock > 0
+
+        // Update stock and status
+        const { data: updatedItem, error: updateError } = await db
+            .from('art_items')
+            .update({ 
+                stock: newStock,
+                status: newStatus
+            })
+            .eq('id', artId)
+            .select()
+            .single();
+
+        if (updateError) {
+            return res.status(500).json({ error: updateError.message });
+        }
+
+        res.json(updatedItem);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 app.delete('/api/art/:id', async (req, res) => {
     const { error } = await db.from('art_items').delete().eq('id', req.params.id);
     if (error) return res.status(500).json({ error: error.message });
@@ -383,15 +470,17 @@ app.get('/api/orders', async (req, res) => {
 });
 
 app.post('/api/orders', async (req, res) => {
-    const { id, customer, items, total, pickupTime, paymentMethod } = req.body;
-    const payment_status = 'PENDING_PAYMENT';
-    const orderDate = new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' });
+    try {
+        const { id, customer, items, total, pickupTime, paymentMethod } = req.body;
 
-    const { data, error } = await db.from('orders').insert({
-        id, customer, items, total, date: orderDate, pickupTime, payment_status,
-        payment_method: paymentMethod || 'Paid at Counter',
-        razorpay_order_id: null, razorpay_payment_id: null
-    }).select().single();
+        // Validation
+        // Note: pickupTime can be empty string for "Order from store" orders
+        if (!id || !customer || !items || total === undefined || pickupTime === undefined || pickupTime === null) {
+            return res.status(400).json({
+                error: 'Missing required fields',
+                details: 'Required: id, customer, items, total, pickupTime (can be empty string for store orders)'
+            });
+        }
 
         // Validate customer object
         if (!customer.name || !customer.phone || !customer.email) {
@@ -1056,6 +1145,14 @@ app.post('/api/payments/verify-payment', async (req, res) => {
         if (orderData) {
             const { id, customer, items, total, pickupTime } = orderData;
 
+            // Validate orderData fields (pickupTime can be empty string for store orders)
+            if (!id || !customer || !items || total === undefined || pickupTime === undefined || pickupTime === null) {
+                return res.status(400).json({
+                    error: 'Invalid order data',
+                    details: 'Required: id, customer, items, total, pickupTime (can be empty string for store orders)'
+                });
+            }
+
             // USE IST TIME for confirmed payment time
             const confirmedDate = getISTTime();
 
@@ -1065,7 +1162,7 @@ app.post('/api/payments/verify-payment', async (req, res) => {
                 items: items, // JSONB - Supabase handles object serialization
                 total,
                 date: confirmedDate,
-                pickupTime,
+                pickupTime: pickupTime || '', // Ensure empty string if null/undefined
                 payment_status: 'PAID',
                 payment_method: 'Paid Online',
                 razorpay_order_id,

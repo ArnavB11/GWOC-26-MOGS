@@ -23,7 +23,8 @@ import FranchisePage from './components/FranchisePage';
 import TrackOrderPage from './components/TrackOrderPage';
 import EmployeeDashboard from './components/EmployeeDashboard';
 import { motion as motionBase, AnimatePresence } from 'framer-motion';
-import { DataProvider } from './DataContext';
+import { DataProvider, useDataContext } from './DataContext';
+import { API_BASE_URL } from './config';
 
 import ChatWidget from './components/ChatWidget';
 
@@ -44,7 +45,9 @@ const ScrollToTop = () => {
   return null;
 };
 
-const App: React.FC = () => {
+const AppContent: React.FC = () => {
+  const { artItems, refreshArtItems } = useDataContext();
+  
   const pathToPage = (path: string): Page => {
     switch (path) {
       case '/menu':
@@ -160,7 +163,28 @@ const App: React.FC = () => {
     });
   };
 
-  const removeFromCart = (id: string) => {
+  const removeFromCart = async (id: string) => {
+    // Check if this is an art item (ID starts with 'a' or exists in artItems)
+    const isArtItem = id.startsWith('a') || artItems.some(item => item.id === id);
+    
+    if (isArtItem) {
+      try {
+        // Increment stock when art item is removed from cart
+        const response = await fetch(`${API_BASE_URL}/api/art/${id}/increment-stock`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+
+        if (response.ok) {
+          // Refresh art items to get updated stock
+          await refreshArtItems();
+        }
+      } catch (error) {
+        console.error('Error restoring art item stock:', error);
+        // Continue with cart removal even if stock update fails
+      }
+    }
+
     setCart(prev => prev.filter(i => i.id !== id));
   };
 
@@ -175,10 +199,9 @@ const App: React.FC = () => {
   // Moved outside App to prevent re-mounting on state changes (like cart updates)
 
   return (
-    <DataProvider>
-      <div className="min-h-screen font-sans bg-[#F9F8F4] text-[#1A1A1A]">
+    <div className="min-h-screen font-sans bg-[#F9F8F4] text-[#1A1A1A]">
         {currentPage !== Page.ADMIN && currentPage !== Page.EMPLOYEE && (
-          <Header onNavigate={navigateTo} currentPage={currentPage} cartCount={cartCount} />
+        <Header onNavigate={navigateTo} currentPage={currentPage} cartCount={cartCount} />
         )}
 
         <AnimatePresence mode="wait">
@@ -278,8 +301,7 @@ const App: React.FC = () => {
 
         {/* --- ADDED CHAT WIDGET HERE --- */}
         {currentPage !== Page.EMPLOYEE && <ChatWidget />}
-      </div >
-    </DataProvider >
+      </div>
   );
 };
 
@@ -418,6 +440,14 @@ const AdminRoute: React.FC<{ children: (logout: () => void) => React.ReactNode }
         )}
       </AnimatePresence>
     </div>
+  );
+};
+
+const App: React.FC = () => {
+  return (
+    <DataProvider>
+      <AppContent />
+    </DataProvider>
   );
 };
 

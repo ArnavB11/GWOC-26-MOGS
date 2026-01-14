@@ -27,7 +27,7 @@ const CartPage: React.FC<CartPageProps> = ({
   onBackToHome,
   onPaymentFailure,
 }) => {
-  const { placeOrder } = useDataContext();
+  const { placeOrder, refreshArtItems } = useDataContext();
 
   // EmailJS configuration (must be VITE_ prefixed in .env)
   const EMAILJS_SERVICE_ID = import.meta.env.VITE_EMAILJS_SERVICE_ID as string;
@@ -206,6 +206,9 @@ const CartPage: React.FC<CartPageProps> = ({
           alert(`Order Placed, but Email Failed: ${emailError?.text || emailError?.message || 'Unknown error'}`);
         }
 
+        // Refresh art items to update stock
+        refreshArtItems();
+        
         onClearCart();
         setCheckoutOpen(false);
         setSuccessOpen(true);
@@ -361,6 +364,9 @@ const CartPage: React.FC<CartPageProps> = ({
               console.warn('[PAYMENT] Email sending failed (payment succeeded):', emailError);
             }
 
+            // Refresh art items to update stock
+            refreshArtItems();
+            
             // Success: clear cart and show success UI
             onClearCart();
             setCheckoutOpen(false);
