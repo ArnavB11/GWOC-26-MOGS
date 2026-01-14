@@ -21,6 +21,7 @@ import {
   ChevronDown,
   Layers,
   TrendingUp,
+  Menu,
 } from 'lucide-react';
 import SalesInsights from './SalesInsights';
 import {
@@ -64,6 +65,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onLogout }) => 
   const [isFranchiseOpen, setIsFranchiseOpen] = useState(false);
   const [isInsightsOpen, setIsInsightsOpen] = useState(false);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('');
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const tabs = [
     { id: 'overview' as const, label: 'Overview', icon: LayoutDashboard },
@@ -694,9 +696,39 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onLogout }) => 
   const enquiryCount = enquiries.length;
 
   return (
-    <div className="flex h-screen bg-[#F9F8F4] pt-10 text-[#0a0a0a]">
-      {/* Sidebar */}
-      <aside className="w-64 border-r border-black/5 px-6 pt-10 pb-6 flex flex-col bg-white/80">
+    <div className="flex h-screen bg-[#F9F8F4] pt-10 text-[#0a0a0a] relative">
+      {/* Mobile Hamburger Button - Only show when menu is closed */}
+      {!isMobileMenuOpen && (
+        <button
+          onClick={() => setIsMobileMenuOpen(true)}
+          className="md:hidden fixed top-4 left-4 z-50 p-2 bg-white/90 border border-black/10 rounded-lg shadow-sm hover:bg-white transition-colors"
+          aria-label="Open menu"
+        >
+          <Menu className="w-5 h-5 text-[#0a0a0a]" />
+        </button>
+      )}
+
+      {/* Mobile Overlay */}
+      <AnimatePresence>
+        {isMobileMenuOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="md:hidden fixed inset-0 z-40 bg-black/60"
+            onClick={() => setIsMobileMenuOpen(false)}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Sidebar - Desktop visible, Mobile as drawer */}
+      <motion.aside
+        initial={false}
+        animate={{ x: isMobileMenuOpen ? 0 : '-100%' }}
+        transition={{ duration: 0.3, ease: 'easeOut' }}
+        className="fixed md:relative w-64 h-full border-r border-black/5 px-6 pt-10 pb-6 flex flex-col bg-white z-40 md:z-auto md:translate-x-0 md:!translate-x-0"
+      >
         <div className="mb-6 text-[#0a0a0a]">
           <p className="text-3xl font-serif font-bold text-black">Admin Panel</p>
         </div>
@@ -712,7 +744,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onLogout }) => 
           ].map((tab) => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
+              onClick={() => {
+                setActiveTab(tab.id as any);
+                setIsMobileMenuOpen(false);
+              }}
               className={`w-full flex items-center space-x-3 px-3 py-2 text-left transition-all border-l-2 ${activeTab === tab.id
                 ? 'border-black font-semibold text-[#0a0a0a]'
                 : 'border-transparent text-zinc-500 hover:text-[#0a0a0a] hover:border-black/10'
@@ -749,7 +784,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onLogout }) => 
                   className="overflow-hidden"
                 >
                   <button
-                    onClick={() => setActiveTab('sales_trends')}
+                    onClick={() => {
+                      setActiveTab('sales_trends');
+                      setIsMobileMenuOpen(false);
+                    }}
                     className={`w-full flex items-center space-x-3 px-3 py-2 pl-10 text-left transition-all ${activeTab === 'sales_trends'
                       ? 'text-[#0a0a0a] font-semibold'
                       : 'text-zinc-500 hover:text-[#0a0a0a]'
@@ -795,7 +833,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onLogout }) => 
                   ].map((sub) => (
                     <button
                       key={sub.id}
-                      onClick={() => setActiveTab(sub.id as any)}
+                      onClick={() => {
+                        setActiveTab(sub.id as any);
+                        setIsMobileMenuOpen(false);
+                      }}
                       className={`w-full flex items-center space-x-3 px-3 py-2 pl-10 text-left transition-all ${activeTab === sub.id
                         ? 'text-[#0a0a0a] font-semibold'
                         : 'text-zinc-500 hover:text-[#0a0a0a]'
@@ -811,6 +852,15 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onLogout }) => 
           </div>
         </nav>
 
+        {/* Mobile Close Button */}
+        <button
+          onClick={() => setIsMobileMenuOpen(false)}
+          className="md:hidden absolute top-4 right-4 p-2 hover:bg-black/5 rounded-lg transition-colors"
+          aria-label="Close menu"
+        >
+          <X className="w-5 h-5 text-[#0a0a0a]" />
+        </button>
+
         {/* Rabuste logo near bottom, above Exit button */}
         <div className="mt-auto mb-12 px-3 flex items-center justify-center">
           <img
@@ -822,6 +872,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onLogout }) => 
 
         <button
           onClick={() => {
+            setIsMobileMenuOpen(false);
             onLogout();
             onBack();
           }}
@@ -830,10 +881,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onLogout }) => 
           <LogOut className="w-4 h-4" />
           <span>Exit Dashboard</span>
         </button>
-      </aside>
+      </motion.aside>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto p-10">
+      <main className="flex-1 overflow-y-auto p-4 md:p-10 w-full md:w-auto">
         <div className="flex items-end justify-between mb-6">
           <div>
             <h1 className="text-4xl md:text-5xl font-serif italic tracking-tight mb-3">

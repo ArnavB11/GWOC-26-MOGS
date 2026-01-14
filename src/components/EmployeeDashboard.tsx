@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion as motionBase } from 'framer-motion';
-import { ArrowLeft, Lock, Package, ChefHat, Clock, CheckCircle2 } from 'lucide-react';
+import { Lock, Package, ChefHat, Clock, CheckCircle2 } from 'lucide-react';
 import { Page } from '../types';
 import { API_BASE_URL } from '../config';
 
@@ -51,6 +51,34 @@ const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({ onNavigate, onBac
       fetchActiveOrders();
     }
   }, []);
+
+  // Handle browser back button - log out and navigate to home
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    // Push a state when authenticated so we can detect back button
+    const currentState = window.history.state;
+    if (!currentState || !currentState.employeeDashboard) {
+      window.history.pushState({ employeeDashboard: true }, '', window.location.pathname);
+    }
+
+    const handlePopState = () => {
+      // When back button is pressed, log out and go to home
+      // Clear session storage first
+      sessionStorage.removeItem('rabuste_employee_auth');
+      setIsAuthenticated(false);
+      setOrders([]);
+      setStatusUpdates({});
+      // Navigate to home
+      onBack();
+    };
+
+    window.addEventListener('popstate', handlePopState);
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, [isAuthenticated, onBack]);
 
   const fetchActiveOrders = async () => {
     setLoading(true);
@@ -194,29 +222,21 @@ const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({ onNavigate, onBac
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={handleLogout}
-              className="p-2 hover:bg-black/5 rounded-full transition-colors"
+          <div>
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="text-[9px] md:text-[10px] uppercase tracking-[0.4em] md:tracking-[0.5em] text-zinc-500 mb-3 md:mb-4 font-sans"
             >
-              <ArrowLeft className="w-5 h-5" />
-            </button>
-            <div>
-              <motion.p
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="text-[9px] md:text-[10px] uppercase tracking-[0.4em] md:tracking-[0.5em] text-zinc-500 mb-3 md:mb-4 font-sans"
-              >
-                Employee Dashboard
-              </motion.p>
-              <motion.h1
-                initial={{ opacity: 0, y: 24 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="text-3xl md:text-5xl font-serif italic tracking-tight"
-              >
-                Active Orders
-              </motion.h1>
-            </div>
+              Employee Dashboard
+            </motion.p>
+            <motion.h1
+              initial={{ opacity: 0, y: 24 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="text-3xl md:text-5xl font-serif italic tracking-tight"
+            >
+              Active Orders
+            </motion.h1>
           </div>
           <button
             onClick={fetchActiveOrders}

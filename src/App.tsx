@@ -177,7 +177,9 @@ const App: React.FC = () => {
   return (
     <DataProvider>
       <div className="min-h-screen font-sans bg-[#F9F8F4] text-[#1A1A1A]">
-        <Header onNavigate={navigateTo} currentPage={currentPage} cartCount={cartCount} />
+        {currentPage !== Page.ADMIN && currentPage !== Page.EMPLOYEE && (
+          <Header onNavigate={navigateTo} currentPage={currentPage} cartCount={cartCount} />
+        )}
 
         <AnimatePresence mode="wait">
           <motion.div
@@ -272,10 +274,10 @@ const App: React.FC = () => {
           </motion.div>
         </AnimatePresence>
 
-        {currentPage !== Page.ADMIN && <Footer onNavigate={navigateTo} />}
+        {currentPage !== Page.ADMIN && currentPage !== Page.EMPLOYEE && <Footer onNavigate={navigateTo} />}
 
         {/* --- ADDED CHAT WIDGET HERE --- */}
-        <ChatWidget />
+        {currentPage !== Page.EMPLOYEE && <ChatWidget />}
       </div >
     </DataProvider >
   );
