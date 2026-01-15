@@ -1,12 +1,13 @@
 
 import React, { useEffect, useMemo, useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { motion as motionBase } from 'framer-motion';
+import { motion as motionBase, AnimatePresence } from 'framer-motion';
 import { Search, Filter, X } from 'lucide-react';
 import { CoffeeItem } from '../types';
 import { useDataContext } from '../DataContext';
 import BrewDeskPopup from './BrewDeskPopup';
 import { API_BASE_URL } from '../config';
+import Toast from './Toast';
 
 // Fix for framer-motion type mismatch in the current environment
 const motion = motionBase as any;
@@ -475,62 +476,62 @@ const MenuPage: React.FC<MenuPageProps> = ({ onAddToCart }) => {
   const fuzzyMatch = (text: string, query: string): boolean => {
     const textLower = text.toLowerCase();
     const queryLower = query.toLowerCase();
-    
+
     // Exact substring match (highest priority)
     if (textLower.includes(queryLower)) return true;
-    
+
     // If query is too short, only do exact match
     if (queryLower.length < 3) return false;
-    
+
     // Normalize: remove special characters and spaces
     const normalizedText = textLower.replace(/[^a-z0-9]/g, '');
     const normalizedQuery = queryLower.replace(/[^a-z0-9]/g, '');
-    
+
     // Check if normalized query is a substring of normalized text
     if (normalizedText.includes(normalizedQuery)) return true;
-    
+
     // Only do fuzzy matching for queries 4+ characters to avoid false matches
     if (normalizedQuery.length < 4) return false;
-    
+
     // Split into words for word-by-word matching (prevents "tea" matching "coffee")
     const textWords = textLower.split(/[\s\-_]+/).filter(w => w.length > 0);
     const queryWords = queryLower.split(/[\s\-_]+/).filter(w => w.length > 0);
-    
+
     // Check if any query word matches any text word
     for (const queryWord of queryWords) {
       if (queryWord.length < 3) continue; // Skip very short words
-      
+
       for (const textWord of textWords) {
         // Exact match in word
         if (textWord.includes(queryWord)) return true;
-        
+
         // Only do fuzzy matching if words are similar length (within 2 chars)
         if (Math.abs(textWord.length - queryWord.length) > 2) continue;
-        
+
         // Check if words share the same first 2-3 characters (prefix match)
         // This prevents "tea" from matching "coffee" (different prefixes)
         const minPrefix = Math.min(3, Math.min(textWord.length, queryWord.length));
         if (textWord.substring(0, minPrefix) !== queryWord.substring(0, minPrefix)) {
           continue; // Different words, skip fuzzy matching
         }
-        
+
         // For words that share a prefix, allow common typos
         const normalizedTextWord = textWord.replace(/[^a-z0-9]/g, '');
         const normalizedQueryWord = queryWord.replace(/[^a-z0-9]/g, '');
-        
+
         // Common character swaps only for similar words
         const commonSwaps: [string, string][] = [
           ['ee', 'e'], ['e', 'ee'], // coffee/cofee
           ['a', 'e'], ['e', 'a'], // bagel/begel
         ];
-        
+
         for (const [from, to] of commonSwaps) {
           const swappedQuery = normalizedQueryWord.replace(new RegExp(from, 'g'), to);
           if (normalizedTextWord.includes(swappedQuery) || swappedQuery.includes(normalizedTextWord)) {
             return true;
           }
         }
-        
+
         // For longer words (5+ chars), allow 1 character difference if they're very similar
         if (normalizedQueryWord.length >= 5 && normalizedTextWord.length >= 5) {
           // Count matching characters in order
@@ -540,8 +541,8 @@ const MenuPage: React.FC<MenuPageProps> = ({ onAddToCart }) => {
             if (normalizedTextWord[textIndex] === normalizedQueryWord[i]) {
               matchingChars++;
               textIndex++;
-            } else if (textIndex + 1 < normalizedTextWord.length && 
-                       normalizedTextWord[textIndex + 1] === normalizedQueryWord[i]) {
+            } else if (textIndex + 1 < normalizedTextWord.length &&
+              normalizedTextWord[textIndex + 1] === normalizedQueryWord[i]) {
               // Allow skipping one character
               textIndex += 2;
               matchingChars++;
@@ -553,7 +554,7 @@ const MenuPage: React.FC<MenuPageProps> = ({ onAddToCart }) => {
         }
       }
     }
-    
+
     return false;
   };
 
@@ -566,11 +567,11 @@ const MenuPage: React.FC<MenuPageProps> = ({ onAddToCart }) => {
     menuItems.forEach(item => {
       // Skip items without required fields
       if (!item.category || !item.name || item.price == null || !item.id) return;
-      
+
       // Use safe defaults to ensure trim() is always called on a string
       const categoryStr = (item.category ?? '').trim();
       if (!categoryStr) return; // Skip if category is empty after trimming
-      
+
       const canonicalCategory = categoryStr.toUpperCase();
       const id = canonicalCategory
         .toLowerCase()
@@ -601,13 +602,13 @@ const MenuPage: React.FC<MenuPageProps> = ({ onAddToCart }) => {
       // 1. Item name
       const nameStr = (item.name ?? '').toLowerCase();
       const nameMatches = fuzzyMatch(nameStr, query);
-      
+
       // 2. Category name (so "coffee" finds items even if it's just a category heading)
       const categoryMatches = fuzzyMatch(categoryStr.toLowerCase(), query);
-      
+
       // 3. Group name (e.g., "Robusta Specialty", "Blend")
       const groupMatches = fuzzyMatch(group.toLowerCase(), query);
-      
+
       // Include item if any field matches
       if (nameMatches || categoryMatches || groupMatches) {
         categoryMap.get(canonicalCategory)!.items.push({
@@ -702,13 +703,13 @@ const MenuPage: React.FC<MenuPageProps> = ({ onAddToCart }) => {
   }, [filteredCategories, activeCategoryId]);
 
   return (
-    <div className="bg-[#F9F8F4] text-[#0a0a0a] pt-24 md:pt-32 pb-40 px-6 md:px-10 min-h-screen">
+    <div className="bg-[#F3EFE0] text-[#0a0a0a] pt-24 md:pt-32 pb-40 px-6 md:px-10 min-h-screen">
       <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-12 gap-8 md:gap-20">
         {/* Sidebar (Desktop Only) */}
         <aside className="hidden md:block md:col-span-3">
           <div className="sticky top-28 space-y-6">
             <div>
-              <p className="text-[10px] uppercase tracking-[0.5em] text-zinc-500 mb-3 font-sans">
+              <p className="text-[13px] uppercase tracking-[0.5em] text-black mb-3 font-sans">
                 Rabuste Menu
               </p>
               <h1 className="text-3xl md:text-4xl font-serif italic tracking-tight">
@@ -734,7 +735,7 @@ const MenuPage: React.FC<MenuPageProps> = ({ onAddToCart }) => {
         </aside>
 
         {/* Mobile Navigation (Sticky Top) */}
-        <div className="md:hidden sticky top-16 z-30 bg-[#F9F8F4]/95 backdrop-blur-sm py-4 -mx-6 px-6 border-b border-black/5 mb-4">
+        <div className="md:hidden sticky top-16 z-30 bg-[#F3EFE0]/95 backdrop-blur-sm py-4 -mx-6 px-6 border-b border-black/5 mb-4">
           <p className="text-[9px] uppercase tracking-[0.4em] text-zinc-500 mb-2 font-sans">Menu Categories</p>
           <div className="flex overflow-x-auto gap-3 pb-2 no-scrollbar snap-x">
             {filteredCategories.map(cat => (
@@ -757,9 +758,8 @@ const MenuPage: React.FC<MenuPageProps> = ({ onAddToCart }) => {
           {/* Top bar: search + sort (non-sticky) */}
           <div className="mb-6">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-              {/* Search bar - hidden on mobile, visible on laptop/desktop */}
-              <div className="relative w-[85%] md:w-full md:max-w-md hidden md:block">
-                <Search className="w-4 h-4 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2" />
+              <div className="relative w-[85%] md:w-full md:max-w-md">
+                <Search className="w-4 h-4 text-black absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
                   value={search}
                   onChange={e => setSearch(e.target.value)}
@@ -770,7 +770,7 @@ const MenuPage: React.FC<MenuPageProps> = ({ onAddToCart }) => {
 
               <div className="flex flex-row items-center justify-between w-full md:w-auto gap-4 text-sm font-sans md:items-center md:flex-row md:gap-12">
                 <div className="flex items-center gap-2">
-                  <Filter className="w-4 h-4 text-zinc-500" />
+                  <Filter className="w-4 h-4 text-" />
                   <select
                     value={sortBy}
                     onChange={e => setSortBy(e.target.value as any)}
@@ -784,7 +784,7 @@ const MenuPage: React.FC<MenuPageProps> = ({ onAddToCart }) => {
                 <button
                   type="button"
                   onClick={() => setShowBrewDesk(true)}
-                  className="px-4 py-2 rounded-full border border-black/15 text-[10px] uppercase tracking-[0.25em] text-zinc-600 bg-white/40 hover:bg-black/5 hover:text-[#0a0a0a] transition-colors whitespace-nowrap"
+                  className="px-4 py-2 rounded-full border border-black/40 text-[10px] uppercase tracking-[0.25em] text-black bg-white hover:bg-black hover:text-white transition-colors whitespace-nowrap"
                 >
                   Help me choose
                 </button>
@@ -835,7 +835,7 @@ const MenuPage: React.FC<MenuPageProps> = ({ onAddToCart }) => {
                               setToastMessage(null);
                             }, 1500);
                           }}
-                          className="px-4 py-2 text-[10px] uppercase tracking-[0.3em] font-sans border border-black/40 rounded-full hover:bg-[#0a0a0a] hover:text-[#F9F8F4] transition-colors"
+                          className="px-4 py-2 text-[10px] uppercase tracking-[0.3em] font-sans border border-black/40 bg-white rounded-full hover:bg-[#0a0a0a] hover:text-[#F9F8F4] transition-colors"
                         >
                           Add to Cart
                         </button>
@@ -926,9 +926,6 @@ const MenuPage: React.FC<MenuPageProps> = ({ onAddToCart }) => {
                 className="scroll-mt-28"
               >
                 <div className="mb-4">
-                  <p className="text-[10px] uppercase tracking-[0.4em] text-zinc-500 font-sans mb-1">
-                    {category.group}
-                  </p>
                   <h2 className="text-3xl md:text-4xl font-serif italic tracking-tight">
                     {category.label}
                   </h2>
@@ -952,7 +949,7 @@ const MenuPage: React.FC<MenuPageProps> = ({ onAddToCart }) => {
                         </span>
                         <button
                           onClick={() => handleAddToCart(category, item)}
-                          className="px-4 py-2 text-[10px] uppercase tracking-[0.3em] font-sans border border-black/40 rounded-full hover:bg-[#0a0a0a] hover:text-[#F9F8F4] transition-colors"
+                          className="px-4 py-2 text-[10px] uppercase tracking-[0.3em] font-sans border border-black/40 rounded-full bg-white hover:bg-[#0a0a0a] hover:text-[#F9F8F4] transition-colors"
                         >
                           Add to Cart
                         </button>
@@ -966,32 +963,36 @@ const MenuPage: React.FC<MenuPageProps> = ({ onAddToCart }) => {
         </main>
       </div>
 
-      {toastMessage && (
-        <motion.div
-          initial={{ opacity: 0, y: 20, x: '-50%' }}
-          animate={{ opacity: 1, y: 0, x: '-50%' }}
-          exit={{ opacity: 0, y: 20, x: '-50%' }}
-          className="fixed top-8 left-1/2 z-50 bg-[#0a0a0a] text-[#F9F8F4] px-6 py-3 rounded-full text-xs uppercase tracking-[0.25em] shadow-xl"
-        >
-          {toastMessage}
-        </motion.div>
-      )}
-
-      {showBrewDesk && typeof document !== 'undefined' && createPortal(
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 font-sans">
-          <div className="absolute inset-0" onClick={() => setShowBrewDesk(false)} />
-          <div className="relative z-[10000] w-full max-w-lg">
-            <div className="absolute -top-12 right-0 text-white text-xs uppercase tracking-[0.25em] flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setShowBrewDesk(false)}>
-              <span>Close</span>
-              <X className="w-4 h-4" />
+      {typeof document !== 'undefined' && createPortal(
+        <AnimatePresence>
+          {showBrewDesk && (
+            <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 font-sans">
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+                onClick={() => setShowBrewDesk(false)}
+              />
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+                className="relative z-[10000] w-full max-w-lg"
+              >
+                <BrewDeskPopup onClose={() => setShowBrewDesk(false)} onAddToCart={onAddToCart} />
+              </motion.div>
             </div>
-            <BrewDeskPopup onClose={() => setShowBrewDesk(false)} onAddToCart={onAddToCart} />
-          </div>
-        </div>,
+          )}
+        </AnimatePresence>,
         document.body
       )}
+
+      <Toast message={toastMessage} />
     </div>
   );
 };
+
 
 export default MenuPage;

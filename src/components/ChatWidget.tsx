@@ -1,6 +1,20 @@
 import { useState, useRef, useEffect } from 'react';
-import { MessageCircle, X, Send, Loader2 } from 'lucide-react';
-import './ChatWidget.css'; // Ensure you have this CSS file
+import { MessageCircle, X, Send, Loader2, Coffee } from 'lucide-react';
+import { motion, AnimatePresence, useDragControls } from 'framer-motion';
+import './ChatWidget.css';
+import { API_BASE_URL } from '../config';
+
+// Simple hook for mobile detection
+const useIsMobile = () => {
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
+  return isMobile;
+};
 
 // Helper to render text with Bold formatting and Line Breaks
 const FormatMessage = ({ text }: { text: string }) => {
@@ -36,6 +50,7 @@ export default function ChatWidget() {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const dragControls = useDragControls();
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -100,8 +115,8 @@ export default function ChatWidget() {
       zIndex: 9999,
       width: isMobile ? 'calc(100vw - 32px)' : '350px',
       maxWidth: '350px',
-      height: isMobile ? 'calc(100vh - 120px)' : '500px',
-      maxHeight: '500px',
+      height: isMobile ? '50vh' : '500px',
+      maxHeight: isMobile ? '80vh' : '500px',
       pointerEvents: 'none'
     }}>
       {/* Container is fixed size to prevent layout shifts, but pointer-events-none so it doesn't block clicks when closed/small.
@@ -122,7 +137,7 @@ export default function ChatWidget() {
             <button
               onClick={() => setIsOpen(true)}
               className={`flex items-center justify-center gap-2 rounded-full shadow-lg transition-transform hover:scale-105 ${isMobile ? 'px-4 py-3' : 'px-6 py-3'}`}
-              style={{ backgroundColor: '#6F4E37', height: isMobile ? '48px' : '56px', width: 'auto' }}
+              style={{ backgroundColor: '#A35D36', height: isMobile ? '48px' : '56px', width: 'auto' }}
             >
               <MessageCircle className="text-[#F9F8F4]" size={isMobile ? 20 : 26} />
               <span className={`text-[#F9F8F4] font-bold whitespace-nowrap ${isMobile ? 'text-sm' : 'text-lg'}`}>Labubu AI</span>
@@ -133,20 +148,33 @@ export default function ChatWidget() {
         {isOpen && (
           <motion.div
             key="window"
+            drag
+            dragControls={dragControls}
+            dragListener={false}
+            dragMomentum={false}
+            dragElastic={0}
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.8, transition: { duration: 0.15 } }}
             transition={{ type: "spring", stiffness: 350, damping: 30 }}
             className={`bg-white rounded-xl shadow-2xl overflow-hidden flex flex-col absolute bottom-0 right-0 pointer-events-auto origin-bottom-right`}
             style={{
-              width: '100%',
+              width: isMobile ? '100%' : '100%',
               height: '100%',
-              border: '1px solid #6F4E37'
+              border: '1px solid #A35D36',
+              resize: isMobile ? 'vertical' : 'none',
+              overflow: 'hidden',
+              minHeight: '300px',
+              maxHeight: '80vh'
             }}
           >
             {/* Header */}
-            <div className={`chat-header flex justify-between items-center text-[#F9F8F4] ${isMobile ? 'p-3' : 'p-5'}`} style={{ backgroundColor: '#6F4E37' }}>
-              <div className="flex items-center gap-3">
+            <div
+              onPointerDown={(e) => dragControls.start(e)}
+              className={`chat-header flex justify-between items-center text-[#F9F8F4] cursor-move ${isMobile ? 'p-3' : 'p-5'}`}
+              style={{ backgroundColor: '#A35D36', touchAction: 'none' }}
+            >
+              <div className="flex items-center gap-3 pointer-events-none">
                 <Coffee size={isMobile ? 22 : 28} />
                 <div className="flex flex-col">
                   <span className={`font-bold leading-tight ${isMobile ? 'text-lg' : 'text-xl'}`}>Labubu</span>
@@ -190,23 +218,21 @@ export default function ChatWidget() {
                 <div ref={messagesEndRef} />
               </div>
 
-              <div className="chat-input-area p-3 border-t border-gray-200 bg-white flex gap-2">
-                <input
-                  type="text"
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                  placeholder="Ask about menu, calories..."
-                  disabled={isLoading}
-                  className="flex-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:border-[#2C1810] text-sm"
-                />
-                <button
-                  onClick={handleSend}
-                  disabled={isLoading || !input.trim()}
-                  className="p-2 rounded-md disabled:opacity-50"
-                  style={{ backgroundColor: '#2C1810', color: '#F3E5AB' }}
-                >
-                  <FormatMessage text={msg.text} />
+            {/* Chat Messages */}
+            <div className={`chat-messages flex-1 overflow-y-auto flex flex-col gap-4 bg-[#F3EFE0] ${isMobile ? 'p-3' : 'p-5'}`}>
+              {messages.map((msg, index) => (
+                <div key={index}
+                  className={`message rounded-xl max-w-[85%] leading-relaxed shadow-sm ${msg.isUser ? 'self-end' : 'self-start'} ${isMobile ? 'p-3 text-[14px]' : 'p-4 text-[16px]'}`}
+                  style={{
+                    whiteSpace: 'pre-wrap',
+                    backgroundColor: msg.isUser ? '#A35D36' : '#EFEBE9',
+                    color: msg.isUser ? '#F9F8F4' : '#2C1810',
+                    border: msg.isUser ? 'none' : '1px solid #D7CCC8',
+                    borderRadius: '16px',
+                    borderBottomRightRadius: msg.isUser ? '2px' : '16px',
+                    borderBottomLeftRadius: msg.isUser ? '16px' : '2px'
+                  }}>
+                  {msg.text}
                 </div>
               </div>
             ))}
@@ -230,13 +256,14 @@ export default function ChatWidget() {
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSend()}
                 placeholder="Ask about menu, calories..."
-                className="flex-1 bg-white border border-[#E7E5E4] rounded-lg px-4 py-3 text-[#44403C] placeholder:text-[#A8A29E] focus:outline-none focus:border-[#8B5E3C] transition-colors"
-                autoFocus
+                disabled={isLoading}
+                className={`flex-1 border border-gray-300 rounded-xl focus:outline-none focus:border-[#A35D36] ${isMobile ? 'p-3 text-[14px]' : 'p-3.5 text-[16px]'}`}
               />
               <button
                 onClick={handleSend}
-                disabled={isLoading || !input.trim()}
-                className="bg-[#A08875] hover:bg-[#8B5E3C] text-white p-3 rounded-lg shadow-md transition-all disabled:opacity-50 disabled:shadow-none active:scale-95"
+                disabled={isLoading || !(input ?? '').trim()}
+                className={`rounded-xl disabled:opacity-50 transition-all hover:brightness-110 shadow-sm ${isMobile ? 'p-3' : 'p-3.5'}`}
+                style={{ backgroundColor: '#A35D36', color: '#F9F8F4' }}
               >
                 <Send className="w-5 h-5 -ml-0.5 mt-0.5" />
               </button>

@@ -110,8 +110,8 @@ const TrackOrderPage: React.FC<TrackOrderPageProps> = ({ onNavigate }) => {
     setSearched(true);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/orders/by-email?email=${encodeURIComponent(emailTrimmed)}`);
-      
+      const response = await fetch(`${API_BASE_URL}/api/orders/by-email?email=${encodeURIComponent(email.trim())}`);
+
       if (!response.ok) {
         throw new Error('Failed to fetch orders');
       }
@@ -127,7 +127,7 @@ const TrackOrderPage: React.FC<TrackOrderPageProps> = ({ onNavigate }) => {
   };
 
   return (
-    <div className="bg-[#F9F8F4] text-[#0a0a0a] pt-24 md:pt-32 pb-40 px-6 md:px-10 min-h-screen">
+    <div className="bg-[#F3EFE0] text-[#0a0a0a] pt-24 md:pt-32 pb-40 px-6 md:px-10 min-h-screen">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="flex items-center gap-4 mb-8">
@@ -141,7 +141,7 @@ const TrackOrderPage: React.FC<TrackOrderPageProps> = ({ onNavigate }) => {
             <motion.p
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="text-[9px] md:text-[10px] uppercase tracking-[0.4em] md:tracking-[0.5em] text-zinc-500 mb-3 md:mb-4 font-sans"
+              className="text-[9px] md:text-[13px] uppercase tracking-[0.4em] md:tracking-[0.5em] text-black mb-3 md:mb-4 font-sans"
             >
               Order Tracking
             </motion.p>
@@ -163,12 +163,12 @@ const TrackOrderPage: React.FC<TrackOrderPageProps> = ({ onNavigate }) => {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="Enter your email address"
-              className="flex-1 bg-white border border-black/20 rounded-lg px-4 py-3 text-sm font-sans outline-none focus:border-black"
+              className="flex-1 bg-white border border-black/20 px-4 py-4 text-sm font-sans uppercase outline-none focus:border-black"
             />
             <button
               type="submit"
               disabled={loading}
-              className="px-6 py-3 bg-[#0a0a0a] text-[#F9F8F4] text-[10px] uppercase tracking-[0.3em] font-sans rounded-lg hover:bg-black transition-colors disabled:opacity-60 flex items-center gap-2"
+              className="px-6 py-3 bg-[#0a0a0a] text-[#F9F8F4] text-[10px] uppercase tracking-[0.3em] font-sans hover:bg-black transition-colors disabled:opacity-60 flex items-center gap-2"
             >
               <Search className="w-4 h-4" />
               {loading ? 'Searching...' : 'Search'}
@@ -210,7 +210,7 @@ const TrackOrderPage: React.FC<TrackOrderPageProps> = ({ onNavigate }) => {
                             {getDisplayStatus(order)}
                           </span>
                         </div>
-                        <p className="text-xs text-zinc-500 font-sans">
+                        <p className="text-xs text-black font-sans">
                           Placed on {new Date(order.date).toLocaleDateString('en-US', {
                             year: 'numeric',
                             month: 'long',
@@ -219,26 +219,20 @@ const TrackOrderPage: React.FC<TrackOrderPageProps> = ({ onNavigate }) => {
                             minute: '2-digit'
                           })}
                         </p>
-                        {order.pickupTime ? (
-                          <p className="text-xs text-zinc-500 font-sans mt-1">
-                            Pickup time: {order.pickupTime}
-                          </p>
-                        ) : (
-                          <p className="text-xs text-zinc-500 font-sans mt-1">
-                            Order from store
-                          </p>
-                        )}
+                        <p className="text-xs text-black font-sans mt-1">
+                          Pickup time: {order.pickupTime}
+                        </p>
                       </div>
                       <div className="text-right">
                         <p className="font-serif text-xl">₹{order.total.toFixed(0)}</p>
-                        <p className="text-xs text-zinc-500 font-sans mt-1">
+                        <p className="text-xs text-black font-sans mt-1">
                           {order.payment_method || 'Payment method not specified'}
                         </p>
                       </div>
                     </div>
 
                     <div className="border-t border-black/5 pt-4">
-                      <p className="text-xs uppercase tracking-[0.3em] text-zinc-500 font-sans mb-2">Items</p>
+                      <p className="text-xs uppercase tracking-[0.3em] text-black font-sans mb-2">Items</p>
                       <div className="space-y-2">
                         {order.items
                           .filter(item => item.id && item.name && item.price != null && item.quantity != null)
@@ -247,8 +241,8 @@ const TrackOrderPage: React.FC<TrackOrderPageProps> = ({ onNavigate }) => {
                             <span>
                               {item.name || 'Unknown Item'} × {item.quantity ?? 0}
                             </span>
-                            <span className="text-zinc-600">
-                              ₹{((item.price ?? 0) * (item.quantity ?? 0)).toFixed(0)}
+                            <span className="text-black">
+                              ₹{(item.price * item.quantity).toFixed(0)}
                             </span>
                           </div>
                         ))}
