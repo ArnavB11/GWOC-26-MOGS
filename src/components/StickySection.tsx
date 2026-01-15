@@ -94,8 +94,7 @@ const StickySection: React.FC<StickySectionProps> = ({ onNavigate }) => {
               </motion.div>
 
               <motion.button
-                onClick={() => onNavigate(Page.AWARENESS)}
-                whileHover="hover"
+                onClick={() => onNavigate(Page.PHILOSOPHY)}
                 variants={{
                   hidden: { opacity: 0, x: -20 },
                   visible: { opacity: 1, x: 0, transition: { duration: 1.0, ease: [0.22, 1, 0.36, 1] } }

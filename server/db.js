@@ -146,7 +146,28 @@ const defaultData = {
         { id: 'fd-10', name: 'Nutella Croissant', category: 'Food', price: 200, caffeine: 'None', image: '/media/pic1.jpeg', description: 'Food', tags: 'food, pastry, sweet' },
         { id: 'fd-11', name: 'Cream Cheese Croissant', category: 'Food', price: 240, caffeine: 'None', image: '/media/pic1.jpeg', description: 'Food', tags: 'food, pastry, savory' }
     ],
-    artItems: [], // Cleared as requested
+    artItems: [
+        {
+            id: 'a1',
+            title: 'Robusta Bloom',
+            artist: 'Studio 47',
+            price: 12000,
+            status: 'Available',
+            image: '/media/pic1.jpeg',
+            stock: 1,
+            artist_name: 'Studio 47'
+        },
+        {
+            id: 'a2',
+            title: 'Night Shift',
+            artist: 'Ananya K.',
+            price: 18000,
+            status: 'Sold',
+            image: '/media/pic2.jpeg',
+            stock: 0,
+            artist_name: 'Ananya K.'
+        }
+    ],
 
     workshops: [
         { id: 'w1', title: 'Latte Art Basics', datetime: 'Oct 24, 10:00 AM', seats: 8, booked: 5, price: 0 },
@@ -190,6 +211,30 @@ export async function initDb() {
                 throw insertError;
             }
             console.log('✅ Menu items seeded successfully');
+        }
+
+        // Check if art_items table is empty and seed if needed
+        const { data: artData, error: artError } = await supabase
+            .from('art_items')
+            .select('id')
+            .limit(1);
+
+        if (artError) {
+            console.error('Error checking art_items:', artError);
+            throw artError;
+        }
+
+        if (!artData || artData.length === 0) {
+            console.log('Seeding Art Items...');
+            const { error: insertError } = await supabase
+                .from('art_items')
+                .insert(defaultData.artItems);
+
+            if (insertError) {
+                console.error('Error seeding art items:', insertError);
+                throw insertError;
+            }
+            console.log('✅ Art items seeded successfully');
         }
 
         // Check if workshops table is empty and seed if needed

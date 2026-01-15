@@ -14,7 +14,7 @@ const RobustaStory: React.FC<RobustaStoryProps> = ({ onBack }) => {
     <section className="pt-24 md:pt-32 pb-40 px-6 md:px-8 bg-[#F3EFE0] text-[#0a0a0a] min-h-screen">
       <div className="max-w-6xl mx-auto">
         <button
-          onClick={() => onBack(Page.AWARENESS)}
+          onClick={() => onBack(Page.PHILOSOPHY)}
           className="mb-8 md:mb-10 inline-flex items-center space-x-3 text-[9px] md:text-[10px] uppercase tracking-[0.4em] text-zinc-400 hover:text-white transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />

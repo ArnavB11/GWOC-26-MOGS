@@ -11,7 +11,7 @@ import MenuPage from './components/MenuPage';
 import CartPage from './components/CartPage';
 import WorkshopPage from './components/WorkshopPage';
 import ArtPage from './components/ArtPage';
-import AwarenessPage from './components/AwarenessPage';
+import PhilosophyPage from './components/PhilosophyPage';
 import Footer from './components/Footer';
 import PaymentFailurePage from './components/PaymentFailurePage';
 import AdminDashboard from './components/AdminDashboard';
@@ -55,7 +55,7 @@ const AppContent: React.FC = () => {
       case '/art':
         return Page.ART;
       case '/philosophy':
-        return Page.AWARENESS;
+        return Page.PHILOSOPHY;
       case '/find-store':
         return Page.FIND_STORE;
       case '/robusta-story':
@@ -85,7 +85,7 @@ const AppContent: React.FC = () => {
         return '/workshops';
       case Page.ART:
         return '/art';
-      case Page.AWARENESS:
+      case Page.PHILOSOPHY:
         return '/philosophy';
       case Page.FIND_STORE:
         return '/find-store';
@@ -252,109 +252,111 @@ const AppContent: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen font-sans bg-[#F3EFE0] text-[#1A1A1A]">
-      {currentPage !== Page.ADMIN && currentPage !== Page.EMPLOYEE && (
-        <Header onNavigate={navigateTo} currentPage={currentPage} cartCount={cartCount} />
-      )}
+    <DataProvider>
+      <div className="min-h-screen font-sans bg-[#F9F8F4] text-[#1A1A1A]">
+        {currentPage !== Page.ADMIN && currentPage !== Page.EMPLOYEE && (
+          <Header onNavigate={navigateTo} currentPage={currentPage} cartCount={cartCount} />
+        )}
 
-      <AnimatePresence mode="wait" onExitComplete={handleExitComplete}>
-        <motion.div
-          key={currentPage}
-          initial={{ opacity: 0, y: 20, filter: 'blur(10px)' }}
-          animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-          exit={{ opacity: 0, y: -20, filter: 'blur(10px)' }}
-          transition={{ duration: 1.0, ease: [0.22, 1, 0.36, 1] }}
-          onAnimationComplete={() => {
-            // Vital for position: fixed/sticky to work
-            document.body.style.overflowX = 'hidden';
-            const element = document.getElementById('page-transition-wrapper');
-            if (element) {
-              element.style.transform = "none";
-            }
-          }}
-          id="page-transition-wrapper"
-        >
-          {/* ScrollToTop removed */}
-          {currentPage === Page.HOME && (
-            <>
-              <Hero />
-              <StickySection onNavigate={navigateTo} />
-              <StatsSection />
-              <ManifestoSection />
-              <ProcessScroll />
-              <GalleryTeaser onNavigate={() => navigateTo(Page.ART)} />
-              <MenuPreview onAddToCart={addToCart} onGoToMenu={() => navigateTo(Page.MENU)} />
-              <Reviews />
-            </>
-          )}
+        <AnimatePresence mode="wait" onExitComplete={handleExitComplete}>
+          <motion.div
+            key={currentPage}
+            initial={{ opacity: 0, y: 20, filter: 'blur(10px)' }}
+            animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+            exit={{ opacity: 0, y: -20, filter: 'blur(10px)' }}
+            transition={{ duration: 1.0, ease: [0.22, 1, 0.36, 1] }}
+            onAnimationComplete={() => {
+              // Vital for position: fixed/sticky to work
+              document.body.style.overflowX = 'hidden';
+              const element = document.getElementById('page-transition-wrapper');
+              if (element) {
+                element.style.transform = "none";
+              }
+            }}
+            id="page-transition-wrapper"
+          >
+            {/* ScrollToTop removed */}
+            {currentPage === Page.HOME && (
+              <>
+                <Hero />
+                <StickySection onNavigate={navigateTo} />
+                <StatsSection />
+                <ManifestoSection />
+                <ProcessScroll />
+                <GalleryTeaser onNavigate={() => navigateTo(Page.ART)} />
+                <MenuPreview onAddToCart={addToCart} onGoToMenu={() => navigateTo(Page.MENU)} />
+                <Reviews />
+              </>
+            )}
 
-          {currentPage === Page.MENU && (
-            <MenuPage onAddToCart={addToCart} />
-          )}
+            {currentPage === Page.MENU && (
+              <MenuPage onAddToCart={addToCart} />
+            )}
 
-          {currentPage === Page.CART && (
-            <CartPage
-              cart={cart}
-              onRemove={removeFromCart}
-              onUpdateQuantity={updateQuantity}
-              onBackToMenu={() => navigateTo(Page.MENU)}
-              onClearCart={() => setCart([])}
-              onBackToHome={() => navigateTo(Page.HOME)}
-              onPaymentFailure={() => navigateTo(Page.PAYMENT_FAILURE)}
-            />
-          )}
+            {currentPage === Page.CART && (
+              <CartPage
+                cart={cart}
+                onRemove={removeFromCart}
+                onUpdateQuantity={updateQuantity}
+                onBackToMenu={() => navigateTo(Page.MENU)}
+                onClearCart={() => setCart([])}
+                onBackToHome={() => navigateTo(Page.HOME)}
+                onPaymentFailure={() => navigateTo(Page.PAYMENT_FAILURE)}
+              />
+            )}
 
-          {currentPage === Page.WORKSHOPS && (
-            <WorkshopPage />
-          )}
+            {currentPage === Page.WORKSHOPS && (
+              <WorkshopPage />
+            )}
 
-          {currentPage === Page.ART && (
-            <ArtPage onAddToCart={addToCart} />
-          )}
+            {currentPage === Page.ART && (
+              <ArtPage onAddToCart={addToCart} />
+            )}
 
-          {currentPage === Page.AWARENESS && (
-            <AwarenessPage onNavigate={navigateTo} />
-          )}
+            {currentPage === Page.PHILOSOPHY && (
+              <PhilosophyPage onNavigate={navigateTo} />
+            )}
 
-          {currentPage === Page.FIND_STORE && (
-            <FindStorePage />
-          )}
+            {currentPage === Page.FIND_STORE && (
+              <FindStorePage />
+            )}
 
-          {currentPage === Page.ROBUSTA_STORY && (
-            <RobustaStory onBack={() => navigateTo(Page.AWARENESS)} />
-          )}
+            {currentPage === Page.ROBUSTA_STORY && (
+              <RobustaStory onBack={() => navigateTo(Page.PHILOSOPHY)} />
+            )}
 
-          {currentPage === Page.FAQ && (
-            <FAQPage />
-          )}
+            {currentPage === Page.FAQ && (
+              <FAQPage />
+            )}
 
-          {currentPage === Page.FRANCHISE && (
-            <FranchisePage />
-          )}
+            {currentPage === Page.FRANCHISE && (
+              <FranchisePage />
+            )}
 
-          {currentPage === Page.TRACK_ORDER && (
-            <TrackOrderPage onNavigate={navigateTo} />
-          )}
+            {currentPage === Page.TRACK_ORDER && (
+              <TrackOrderPage onNavigate={navigateTo} />
+            )}
 
-          {currentPage === Page.EMPLOYEE && (
-            <EmployeeDashboard onNavigate={navigateTo} onBack={() => navigateTo(Page.HOME)} />
-          )}
+            {currentPage === Page.EMPLOYEE && (
+              <EmployeeDashboard onNavigate={navigateTo} onBack={() => navigateTo(Page.HOME)} />
+            )}
 
-          {currentPage === Page.ADMIN && (
-            <AdminRoute onBack={() => navigateTo(Page.HOME)}>
-              {handleLogout => (
-                <AdminDashboard onBack={() => navigateTo(Page.HOME)} onLogout={handleLogout} />
-              )}
-            </AdminRoute>
-          )}
-        </motion.div>
-      </AnimatePresence>
+            {currentPage === Page.ADMIN && (
+              <AdminRoute onBack={() => navigateTo(Page.HOME)}>
+                {handleLogout => (
+                  <AdminDashboard onBack={() => navigateTo(Page.HOME)} onLogout={handleLogout} />
+                )}
+              </AdminRoute>
+            )}
+          </motion.div>
+        </AnimatePresence>
 
-      {currentPage !== Page.ADMIN && currentPage !== Page.EMPLOYEE && <Footer onNavigate={navigateTo} />}
+        {currentPage !== Page.ADMIN && currentPage !== Page.EMPLOYEE && <Footer onNavigate={navigateTo} />}
 
-      {/* --- ADDED CHAT WIDGET HERE --- */}
-      {currentPage !== Page.EMPLOYEE && <ChatWidget />}
-    </div>
+        {/* --- ADDED CHAT WIDGET HERE --- */}
+        {currentPage !== Page.ADMIN && currentPage !== Page.EMPLOYEE && currentPage !== Page.CART && <ChatWidget />}
+      </div>
+    </DataProvider>
   );
 };
 
@@ -426,13 +428,13 @@ const AdminRoute: React.FC<{ children: (logout: () => void) => React.ReactNode, 
   }
 
   return (
-    <div className="min-h-screen bg-[#F3EFE0] flex items-center justify-center px-4 relative overflow-hidden">
-      <div className="w-full max-w-sm bg-white border border-black/10 rounded-xl shadow-sm p-8 z-10">
-        <div className="flex items-center justify-center mb-6">
-          <div className="p-3 bg-black/5 rounded-full">
-            <Lock className="w-8 h-8 text-[#0a0a0a]" />
-          </div>
-        </div>
+    <div className="min-h-screen flex items-center justify-center px-4 relative overflow-hidden">
+      {/* Background Image */}
+      <div className="absolute inset-0 z-0">
+        <img src="/media/login.png" alt="Login Background" className="w-full h-full object-cover" />
+      </div>
+
+      <div className="w-full max-w-sm bg-white/95 backdrop-blur-md border border-white/20 rounded-xl shadow-2xl p-8 z-10 relative">
         <h1 className="text-2xl font-serif mb-2 text-center">Admin Login</h1>
         <p className="text-xs text-zinc-500 font-sans mb-4 text-center uppercase tracking-[0.25em]">
           Rabuste Coffee

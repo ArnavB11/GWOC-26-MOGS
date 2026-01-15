@@ -568,15 +568,13 @@ const MenuPage: React.FC<MenuPageProps> = ({ onAddToCart }) => {
     const categoryMap = new Map<string, MenuCategory>();
 
     menuItems.forEach(item => {
-      // Compatibility: use category (legacy) or category_name (new)
-      const categorySource = item.category || item.category_name;
+      // Skip items without minimal required fields (price/name/id)
+      if (!item.name || item.price == null || !item.id) return;
 
-      // Skip items without required fields
-      if (!categorySource || !item.name || item.price == null || !item.id) return;
-
-      // Use safe defaults
-      const categoryStr = (categorySource ?? '').trim();
-      if (!categoryStr) return;
+      // Use safe defaults to ensure trim() is always called on a string
+      const rawCategory = item.category || item.category_legacy || item.category_name || '';
+      const categoryStr = rawCategory.trim();
+      if (!categoryStr) return; // Skip if category is empty after trimming
 
       const canonicalCategory = categoryStr.toUpperCase();
       const id = canonicalCategory
@@ -585,7 +583,7 @@ const MenuPage: React.FC<MenuPageProps> = ({ onAddToCart }) => {
         .replace(/(^-|-$)/g, '');
 
       // Attempt to derive group from sub_category_name first, fallback to regex on category string
-      const groupSource = item.sub_category_name || categorySource;
+      const groupSource = item.sub_category_name || rawCategory;
       const group = (groupSource.split('(')[0] ?? '').trim();
 
       if (!categoryMap.has(canonicalCategory)) {

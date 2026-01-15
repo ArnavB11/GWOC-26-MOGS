@@ -18,7 +18,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, currentPage, cartCount }) =
     { label: 'Menu', page: Page.MENU },
     { label: 'Workshops', page: Page.WORKSHOPS },
     { label: 'Art Gallery', page: Page.ART },
-    { label: 'Our Story', page: Page.AWARENESS },
+    { label: 'Philosophy', page: Page.PHILOSOPHY },
     { label: 'Find Store', page: Page.FIND_STORE },
     { label: 'Track Order', page: Page.TRACK_ORDER },
     { label: 'Franchise', page: Page.FRANCHISE },
@@ -47,8 +47,8 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, currentPage, cartCount }) =
   // Home: Dark glass effect.
   // Inner: Subtle dark ring for contrast against cream.
   // MENU BUTTON BACKGROUND:
-  // Always brand brown now
-  const menuButtonBg = 'bg-[#A35D36] border-[#A35D36]';
+  // Brand brown for mobile visibility (as requested)
+  const menuButtonBg = 'bg-[#A35D36] border-[#A35D36] text-white';
 
   // --- SCROLL VISIBILITY LOGIC ---
   const { scrollY } = useScroll();
@@ -74,37 +74,35 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, currentPage, cartCount }) =
           className={`relative flex items-center justify-between px-6 ${isHome ? 'py-1' : 'pt-2 pb-3'
             }`}
         >
-          {/* LOGO */}
-          <div className="flex-1 pointer-events-auto">
-            {!isHome && currentPage !== Page.ADMIN && (
-              <button
-                onClick={() => handleNavigate(Page.HOME)}
-                className={`absolute top-6 left-8 z-50 flex items-center justify-center hover:opacity-80 transition-all duration-300 transform 
-                  ${isScrolled ? '-translate-y-20 opacity-0 pointer-events-none md:translate-y-0 md:opacity-100 md:pointer-events-auto' : 'translate-y-0 opacity-100 pointer-events-auto'}
-                `}
-              >
-                <img
-                  src="/media/logo.png"
-                  alt="Rabuste Logo"
-                  className={`h-16 md:h-20 w-32 object-contain transition-all duration-700 ${logoFilterClass}`}
-                />
-              </button>
-            )}
-          </div>
+          {/* LOGO (Inner Pages Only - or Conditional) */}
+          {/* We show logo on inner pages to navigate home, but hide it on Admin. */}
+          {!isHome && currentPage !== Page.ADMIN && (
+            <button
+              onClick={() => handleNavigate(Page.HOME)}
+              className="absolute top-6 left-8 z-50 flex items-center justify-center hover:opacity-80 transition-opacity pointer-events-auto"
+            >
+              <img
+                src="/media/logo.png"
+                alt="Rabuste Logo"
+                className={`h-16 md:h-20 w-30 object-contain ${logoFilterClass}`}
+              />
+            </button>
+          )}
 
           {/* RIGHT SIDE ICONS */}
           {currentPage !== Page.ADMIN && (
-            <div className={`fixed top-5 right-5 md:top-9 md:right-12 z-50 flex items-center space-x-3 md:space-x-4 pointer-events-auto transition-colors duration-700 ${textColorClass}`}>
+            <div className={`fixed top-4 right-4 md:top-8 md:right-12 z-50 flex items-center space-x-4 md:space-x-6 pointer-events-auto ${textColorClass}`}>
               {/* Cart Button */}
               <button
                 onClick={() => handleNavigate(Page.CART)}
-                className="relative cursor-pointer opacity-100 hover:opacity-70 transition-opacity text-[#A35D36]"
+                className="relative cursor-pointer opacity-100 hover:opacity-70 transition-opacity"
               >
-                <ShoppingBag className="w-5 h-5 md:w-7 md:h-7" />
+                <ShoppingBag className="w-5 h-5 md:w-6 md:h-6" />
                 {cartCount > 0 && (
                   <motion.span
                     initial={{ scale: 0, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
+                    // Badge Colors Flipped for Contrast
                     className={`absolute -top-2 -right-2 text-[9px] w-4 h-4 flex items-center justify-center rounded-full font-black ${isHome ? 'bg-white text-black' : 'bg-black text-white'}`}
                   >
                     {cartCount}
@@ -112,14 +110,14 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, currentPage, cartCount }) =
                 )}
               </button>
 
-              {/* Hamburger Menu Button (Mobile Only) */}
+              {/* Hamburger Menu Button */}
               <button
                 onClick={() => setMenuOpen(true)}
-                className="relative cursor-pointer hover:opacity-80 transition-opacity text-white md:hidden"
+                className="relative cursor-pointer hover:opacity-80 transition-opacity md:hidden"
                 aria-label="Open navigation menu"
               >
-                <span className={`inline-flex h-10 w-10 md:h-12 md:w-12 items-center justify-center rounded-full border ${menuButtonBg}`}>
-                  <Menu className="w-5 h-5 md:w-6 md:h-6" />
+                <span className={`inline-flex h-10 w-10 items-center justify-center rounded-full border ${menuButtonBg}`}>
+                  <Menu className="w-5 h-5 text-white" />
                 </span>
               </button>
             </div>

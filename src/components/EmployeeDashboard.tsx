@@ -238,11 +238,16 @@ const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({ onNavigate, onBac
 
   if (!isAuthenticated) {
     return (
-      <div className="bg-[#F3EFE0] text-[#0a0a0a] min-h-screen flex items-center justify-center px-4 w-full overflow-x-hidden">
+      <div className="text-[#0a0a0a] min-h-screen flex items-center justify-center px-4 relative overflow-hidden">
+        {/* Background Image */}
+        <div className="absolute inset-0 z-0">
+          <img src="/media/login.png" alt="Login Background" className="w-full h-full object-cover" />
+        </div>
+
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="w-full max-w-sm bg-white border border-black/10 rounded-xl shadow-sm p-6 md:p-8"
+          className="w-full max-w-sm bg-white/95 backdrop-blur-md border border-white/20 rounded-xl shadow-2xl p-8 z-10 relative"
         >
           <div className="flex items-center justify-center mb-6">
             <div className="p-3 bg-black/5 rounded-full">
