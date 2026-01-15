@@ -22,8 +22,11 @@ import {
   Layers,
   TrendingUp,
   Menu,
+  Tag as TagIcon,
 } from 'lucide-react';
 import SalesInsights from './SalesInsights';
+import TagPerformance from './TagPerformance';
+import ItemAffinity from './ItemAffinity';
 import {
   useDataContext,
   CoffeeAdminItem,
@@ -61,7 +64,7 @@ interface FranchiseFaqItem {
 }
 
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onLogout }) => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'coffee' | 'orders' | 'art' | 'workshops' | 'manage_categories' | 'franchise_enquiries' | 'franchise_faqs' | 'franchise_settings' | 'sales_trends'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'coffee' | 'orders' | 'art' | 'workshops' | 'manage_categories' | 'franchise_enquiries' | 'franchise_faqs' | 'franchise_settings' | 'sales_trends' | 'tag_performance'>('overview');
   const [isFranchiseOpen, setIsFranchiseOpen] = useState(false);
   const [isInsightsOpen, setIsInsightsOpen] = useState(false);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('');
@@ -165,6 +168,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onLogout }) => 
   const [franchiseFaqs, setFranchiseFaqs] = useState<FranchiseFaqItem[]>([]);
   const [franchiseContact, setFranchiseContact] = useState<string>('');
   const [selectedEnquiry, setSelectedEnquiry] = useState<FranchiseEnquiry | null>(null);
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [dateFilter, setDateFilter] = useState<{ start: string; end: string }>({ start: '', end: '' });
 
   const refreshEnquiries = () => {
     fetch(`${API_BASE_URL}/api/franchise/enquiries`)
@@ -707,7 +712,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onLogout }) => 
       { id: 'franchise_enquiries', label: 'Franchise Enquiries' },
       { id: 'franchise_faqs', label: 'Franchise FAQs' },
       { id: 'franchise_settings', label: 'Franchise Settings' },
-      { id: 'sales_trends', label: 'Sales Trends' }
+      { id: 'sales_trends', label: 'Sales Trends' },
+      { id: 'tag_performance', label: 'Tag Performance' }
     ];
     return allItems.find(t => t.id === activeTab)?.label || 'Dashboard';
   }, [activeTab]);
@@ -786,7 +792,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onLogout }) => 
           <div className="pt-2">
             <button
               onClick={() => setIsInsightsOpen(!isInsightsOpen)}
-              className={`w-full flex items-center justify-between px-3 py-2 text-left transition-all border-l-2 ${['sales_trends'].includes(activeTab)
+              className={`w-full flex items-center justify-between px-3 py-2 text-left transition-all border-l-2 ${['sales_trends', 'tag_performance'].includes(activeTab)
                 ? 'border-black text-[#0a0a0a]'
                 : 'border-transparent text-zinc-500 hover:text-[#0a0a0a] hover:border-black/10'
                 }`}
@@ -799,25 +805,53 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onLogout }) => 
                 className={`w-4 h-4 transition-transform duration-200 ${isInsightsOpen ? 'rotate-180' : ''}`}
               />
             </button>
+
             <AnimatePresence>
               {isInsightsOpen && (
                 <motion.div
                   initial={{ height: 0, opacity: 0 }}
                   animate={{ height: 'auto', opacity: 1 }}
                   exit={{ height: 0, opacity: 0 }}
-                  className="overflow-hidden"
+                  className="overflow-hidden bg-[#faf9f6]/50"
                 >
                   <button
                     onClick={() => {
                       setActiveTab('sales_trends');
                       setIsMobileMenuOpen(false);
                     }}
-                    className={`w-full flex items-center space-x-3 px-3 py-2 pl-10 text-left transition-all ${activeTab === 'sales_trends'
-                      ? 'text-[#0a0a0a] font-semibold'
-                      : 'text-zinc-500 hover:text-[#0a0a0a]'
+                    className={`w-full flex items-center space-x-3 px-3 py-2 pl-9 text-left text-xs transition-all border-l-2 ${activeTab === 'sales_trends'
+                      ? 'border-black font-semibold text-[#0a0a0a]'
+                      : 'border-transparent text-zinc-500 hover:text-[#0a0a0a] hover:border-black/5'
                       }`}
                   >
-                    <span className="text-[10px] tracking-[0.25em]">Sales Trends</span>
+                    <TrendingUp className="w-3 h-3" />
+                    <span>Sales Trends</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setActiveTab('tag_performance');
+                      setIsMobileMenuOpen(false);
+                    }}
+                    className={`w-full flex items-center space-x-3 px-3 py-2 pl-9 text-left text-xs transition-all border-l-2 ${activeTab === 'tag_performance'
+                      ? 'border-black font-semibold text-[#0a0a0a]'
+                      : 'border-transparent text-zinc-500 hover:text-[#0a0a0a] hover:border-black/5'
+                      }`}
+                  >
+                    <TagIcon className="w-3 h-3" />
+                    <span>Tag Performance</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setActiveTab('item_affinity');
+                      setIsMobileMenuOpen(false);
+                    }}
+                    className={`w-full flex items-center space-x-3 px-3 py-2 pl-9 text-left text-xs transition-all border-l-2 ${activeTab === 'item_affinity'
+                      ? 'border-black font-semibold text-[#0a0a0a]'
+                      : 'border-transparent text-zinc-500 hover:text-[#0a0a0a] hover:border-black/5'
+                      }`}
+                  >
+                    <Users className="w-3 h-3" />
+                    <span>Item Affinity</span>
                   </button>
                 </motion.div>
               )}
@@ -848,7 +882,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onLogout }) => 
                   initial={{ height: 0, opacity: 0 }}
                   animate={{ height: 'auto', opacity: 1 }}
                   exit={{ height: 0, opacity: 0 }}
-                  className="overflow-hidden"
+                  className="overflow-hidden bg-[#faf9f6]/50"
                 >
                   {[
                     { id: 'franchise_enquiries', label: 'Enquiries', icon: MessageSquare },
@@ -861,9 +895,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onLogout }) => 
                         setActiveTab(sub.id as any);
                         setIsMobileMenuOpen(false);
                       }}
-                      className={`w-full flex items-center space-x-3 px-3 py-2 pl-10 text-left transition-all ${activeTab === sub.id
-                        ? 'text-[#0a0a0a] font-semibold'
-                        : 'text-zinc-500 hover:text-[#0a0a0a]'
+                      className={`w-full flex items-center space-x-3 px-3 py-2 pl-9 text-left text-xs transition-all border-l-2 ${activeTab === sub.id
+                        ? 'border-black font-semibold text-[#0a0a0a]'
+                        : 'border-transparent text-zinc-500 hover:text-[#0a0a0a] hover:border-black/5'
                         }`}
                     >
                       <sub.icon className="w-3 h-3" />
@@ -874,7 +908,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onLogout }) => 
               )}
             </AnimatePresence>
           </div>
-        </nav>
+        </nav >
 
         {/* Mobile Close Button */}
         <button
@@ -908,119 +942,153 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onLogout }) => 
       </motion.aside>
 
       {/* Main Content */}
-      <main className="flex-1 p-4 md:p-10 w-full md:w-auto overflow-visible md:overflow-y-auto md:h-full">
-        <div className="flex flex-col md:flex-row items-center md:items-end justify-center md:justify-between mb-6">
-          <div className="text-center md:text-left">
-            <h1 className="text-4xl md:text-5xl font-serif italic tracking-tight mb-3">
-              {activeTabLabel}
-            </h1>
-            <p className="text-xs md:text-sm uppercase tracking-[0.3em] text-zinc-500 font-sans">
-              Rabuste Coffee — Internal Console
-            </p>
+      < main className="flex-1 p-4 md:p-10 w-full md:w-auto overflow-visible md:overflow-y-auto md:h-full" >
+        {!['sales_trends', 'tag_performance', 'item_affinity'].includes(activeTab) && (
+          <div className="flex flex-col md:flex-row items-center md:items-end justify-center md:justify-between mb-6">
+            <div className="text-center md:text-left">
+              <h1 className="text-4xl md:text-5xl font-serif italic tracking-tight mb-3">
+                {activeTabLabel}
+              </h1>
+              <p className="text-xs md:text-sm uppercase tracking-[0.3em] text-zinc-500 font-sans">
+                Rabuste Coffee — Internal Console
+              </p>
+            </div>
+
+            <div className="mt-4 md:mt-0">
+              {activeTab === 'coffee' && (
+                <button
+                  onClick={openCoffeeModalForNew}
+                  className="inline-flex items-center space-x-2 px-6 py-3 bg-[#0a0a0a] text-[#F9F8F4] text-[11px] uppercase tracking-[0.3em] font-bold hover:bg-black transition-all"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Add New Item</span>
+                </button>
+              )}
+
+              {activeTab === 'art' && (
+                <button
+                  onClick={openArtModalForNew}
+                  className="inline-flex items-center space-x-2 px-6 py-3 bg-[#0a0a0a] text-[#F9F8F4] text-[11px] uppercase tracking-[0.3em] font-bold hover:bg-black transition-all"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Upload Art</span>
+                </button>
+              )}
+
+              {activeTab === 'workshops' && (
+                <button
+                  onClick={createWorkshop}
+                  className="inline-flex items-center space-x-2 px-6 py-3 bg-[#0a0a0a] text-[#F9F8F4] text-[11px] uppercase tracking-[0.3em] font-bold hover:bg-black transition-all"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Create Workshop</span>
+                </button>
+              )}
+            </div>
           </div>
-
-          <div className="mt-4 md:mt-0">
-            {activeTab === 'coffee' && (
-              <button
-                onClick={openCoffeeModalForNew}
-                className="inline-flex items-center space-x-2 px-6 py-3 bg-[#0a0a0a] text-[#F9F8F4] text-[11px] uppercase tracking-[0.3em] font-bold hover:bg-black transition-all"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Add New Item</span>
-              </button>
-            )}
-
-            {activeTab === 'art' && (
-              <button
-                onClick={openArtModalForNew}
-                className="inline-flex items-center space-x-2 px-6 py-3 bg-[#0a0a0a] text-[#F9F8F4] text-[11px] uppercase tracking-[0.3em] font-bold hover:bg-black transition-all"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Upload Art</span>
-              </button>
-            )}
-
-            {activeTab === 'workshops' && (
-              <button
-                onClick={createWorkshop}
-                className="inline-flex items-center space-x-2 px-6 py-3 bg-[#0a0a0a] text-[#F9F8F4] text-[11px] uppercase tracking-[0.3em] font-bold hover:bg-black transition-all"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Create Workshop</span>
-              </button>
-            )}
-          </div>
-        </div>
+        )}
 
         {/* Tab content */}
-        {activeTab === 'overview' && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <OverviewCard label="Beverages" value={beverageCount} />
-            <OverviewCard label="Food" value={foodCount} />
-            <OverviewCard label="Artworks" value={artItems.length} />
-            <OverviewCard label="Workshops" value={workshops.length} />
-            <OverviewCard label="Franchise Leads" value={enquiryCount} />
-          </div>
-        )}
+        {
+          activeTab === 'overview' && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <OverviewCard label="Beverages" value={beverageCount} />
+              <OverviewCard label="Food" value={foodCount} />
+              <OverviewCard label="Artworks" value={artItems.length} />
+              <OverviewCard label="Workshops" value={workshops.length} />
+              <OverviewCard label="Franchise Leads" value={enquiryCount} />
+            </div>
+          )
+        }
 
         {activeTab === 'sales_trends' && <SalesInsights />}
+        {activeTab === 'tag_performance' && <TagPerformance />}
+        {activeTab === 'item_affinity' && <ItemAffinity />}
 
-        {activeTab === 'coffee' && (
-          <CoffeeTable
-            items={menuItems}
-            onEdit={openCoffeeModalForEdit}
-            onDelete={deleteCoffeeItem}
-          />
-        )}
-
-        {activeTab === 'orders' && (
-          <OrdersTable items={orders} />
-        )}
-
-        {activeTab === 'art' && (
-          <ArtTable items={artItems} onToggleStatus={toggleArtStatus} onEdit={openArtModalForEdit} onDelete={deleteArtItem} />
-        )}
-
-        {activeTab === 'workshops' && <WorkshopTable items={workshops} />}
-
-        {activeTab === 'manage_categories' && (
-          <div className="max-w-3xl">
-            <div className="mb-6">
-              <h2 className="text-2xl font-serif italic text-black">Manage Categories</h2>
-              <p className="text-[13px] text-zinc-500 mt-1">Create, rename, and delete categories and sub-categories</p>
-            </div>
-            <CategoryManager
-              selectedCategoryId={selectedCategoryId}
-              onCategorySelect={setSelectedCategoryId}
+        {
+          activeTab === 'coffee' && (
+            <CoffeeTable
+              items={menuItems}
+              onEdit={openCoffeeModalForEdit}
+              onDelete={deleteCoffeeItem}
             />
-          </div>
-        )}
+          )
+        }
 
-        {activeTab === 'franchise_enquiries' && (
-          <FranchiseTable
-            items={enquiries}
-            onMarkRead={markEnquiryRead}
-            onDelete={deleteEnquiry}
-            onView={(item) => setSelectedEnquiry(item)}
-          />
-        )}
+        {
+          activeTab === 'orders' && (
+            <div className="space-y-6">
+              <div className="bg-white border border-black/5 rounded-xl p-4 flex flex-wrap items-end gap-4 shadow-sm">
+                <div>
+                  <label className="block text-[10px] uppercase tracking-[0.2em] text-zinc-500 mb-2">Start Date</label>
+                  <input
+                    type="date"
+                    value={dateFilter.start}
+                    onChange={(e) => setDateFilter(prev => ({ ...prev, start: e.target.value }))}
+                    className="h-[42px] px-4 text-[13px] border border-black/10 rounded-lg outline-none focus:border-black uppercase tracking-wider text-zinc-700 bg-zinc-50"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] uppercase tracking-[0.2em] text-zinc-500 mb-2">End Date</label>
+                  <input
+                    type="date"
+                    value={dateFilter.end}
+                    onChange={(e) => setDateFilter(prev => ({ ...prev, end: e.target.value }))}
+                    className="h-[42px] px-4 text-[13px] border border-black/10 rounded-lg outline-none focus:border-black uppercase tracking-wider text-zinc-700 bg-zinc-50"
+                  />
+                </div>
+                <div className="flex-1" />
+                {(dateFilter.start || dateFilter.end) && (
+                  <button
+                    onClick={() => setDateFilter({ start: '', end: '' })}
+                    className="h-[42px] px-6 text-[11px] uppercase tracking-[0.2em] text-zinc-500 hover:text-black border border-transparent hover:border-black/5 rounded-lg transition-colors font-bold"
+                  >
+                    Clear Filter
+                  </button>
+                )}
+              </div>
 
-        {/* Enquiry Modal */}
-        {selectedEnquiry && (
-          <EnquiryDetailModal
-            enquiry={selectedEnquiry}
-            onClose={() => setSelectedEnquiry(null)}
+              <OrdersTable
+                items={orders.filter(order => {
+                  if (!dateFilter.start && !dateFilter.end) return true;
+                  const orderDate = new Date(order.date);
+                  // Normalize dates to start of day for comparison
+                  const start = dateFilter.start ? new Date(dateFilter.start) : null;
+                  const end = dateFilter.end ? new Date(dateFilter.end) : null;
+
+                  if (start) start.setHours(0, 0, 0, 0);
+                  if (end) end.setHours(23, 59, 59, 999);
+
+                  if (start && orderDate < start) return false;
+                  if (end && orderDate > end) return false;
+                  return true;
+                })}
+                onRowClick={setSelectedOrder}
+              />
+            </div>
+          )
+        }
+
+        {/* Order Details Modal */}
+        {selectedOrder && (
+          <OrderDetailsModal
+            order={selectedOrder}
+            onClose={() => setSelectedOrder(null)}
             onUpdateStatus={async (id, status) => {
               try {
-                const res = await fetch(`${API_BASE_URL}/api/franchise/enquiries/${id}/status`, {
+                const res = await fetch(`${API_BASE_URL}/api/orders/${id}/status`, {
                   method: 'PUT',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({ status })
                 });
                 if (res.ok) {
-                  showToast('Status updated', 'success');
-                  setSelectedEnquiry(null);
-                  refreshEnquiries(); // Refresh list
+                  showToast('Order status updated', 'success');
+                  // Optimization: Update local state without full reload
+                  const updatedOrder = await res.json();
+                  setSelectedOrder(updatedOrder);
+                  // Orders list should ideally listen to changes or we trigger a refetch, 
+                  // but for now DataContext.refresh might be needed or we can optimistically update
+                  // For simplicity in this turn, I'm not triggering a full reload, assuming DataContext handles it or user refreshes manually
                 } else {
                   showToast('Failed to update status', 'error');
                 }
@@ -1031,344 +1099,412 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onLogout }) => 
           />
         )}
 
-        {activeTab === 'franchise_faqs' && (
-          <FranchiseFaqManager
-            items={franchiseFaqs}
-            onAdd={addFaq}
-            onDelete={deleteFaq}
-          />
-        )}
+        {
+          activeTab === 'art' && (
+            <ArtTable items={artItems} onToggleStatus={toggleArtStatus} onEdit={openArtModalForEdit} onDelete={deleteArtItem} />
+          )
+        }
 
-        {activeTab === 'franchise_settings' && (
-          <FranchiseSettingsManager
-            contactNumber={franchiseContact}
-            onSave={saveFranchiseContact}
-          />
-        )}
-      </main>
+        {activeTab === 'workshops' && <WorkshopTable items={workshops} />}
+
+        {
+          activeTab === 'manage_categories' && (
+            <div className="max-w-3xl">
+              <div className="mb-6">
+                <h2 className="text-2xl font-serif italic text-black">Manage Categories</h2>
+                <p className="text-[13px] text-zinc-500 mt-1">Create, rename, and delete categories and sub-categories</p>
+              </div>
+              <CategoryManager
+                selectedCategoryId={selectedCategoryId}
+                onCategorySelect={setSelectedCategoryId}
+              />
+            </div>
+          )
+        }
+
+        {
+          activeTab === 'franchise_enquiries' && (
+            <FranchiseTable
+              items={enquiries}
+              onMarkRead={markEnquiryRead}
+              onDelete={deleteEnquiry}
+              onView={(item) => setSelectedEnquiry(item)}
+            />
+          )
+        }
+
+        {/* Enquiry Modal */}
+        {
+          selectedEnquiry && (
+            <EnquiryDetailModal
+              enquiry={selectedEnquiry}
+              onClose={() => setSelectedEnquiry(null)}
+              onUpdateStatus={async (id, status) => {
+                try {
+                  const res = await fetch(`${API_BASE_URL}/api/franchise/enquiries/${id}/status`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status })
+                  });
+                  if (res.ok) {
+                    showToast('Status updated', 'success');
+                    setSelectedEnquiry(null);
+                    refreshEnquiries(); // Refresh list
+                  } else {
+                    showToast('Failed to update status', 'error');
+                  }
+                } catch (e) {
+                  showToast('Error updating status', 'error');
+                }
+              }}
+            />
+          )
+        }
+
+        {
+          activeTab === 'franchise_faqs' && (
+            <FranchiseFaqManager
+              items={franchiseFaqs}
+              onAdd={addFaq}
+              onDelete={deleteFaq}
+            />
+          )
+        }
+
+        {
+          activeTab === 'franchise_settings' && (
+            <FranchiseSettingsManager
+              contactNumber={franchiseContact}
+              onSave={saveFranchiseContact}
+            />
+          )
+        }
+      </main >
 
       {/* Coffee modal - Notion/Linear styled */}
-      {coffeeModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="w-[600px] bg-white rounded-[20px] shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)] overflow-hidden max-h-[90vh] flex flex-col"
-          >
-            {/* Header */}
-            <div className="px-8 py-6 border-b border-[#EBEBEB] flex items-center justify-between">
-              <h2 className="text-[18px] font-semibold text-[#111]">{editingCoffee ? 'Edit Item' : 'Add New Item'}</h2>
-              <button
-                onClick={closeCoffeeModal}
-                className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-[#F5F5F5] transition-colors"
-              >
-                <X className="w-4 h-4 text-[#999]" />
-              </button>
-            </div>
-
-
-            {/* Form Content - 32px padding */}
-            <div className="p-8 space-y-4 overflow-y-auto flex-1">
-              {/* Item Type - Segmented Control */}
-              <div>
-                <label className="block text-[12px] font-semibold text-[#333] uppercase tracking-[0.05em] mb-3">Item Type</label>
-                <div className="flex p-1 bg-[#F5F5F5] rounded-[12px]">
-                  <button
-                    type="button"
-                    onClick={() => setItemKind('beverage')}
-                    className={`flex-1 h-[40px] text-[14px] font-medium rounded-[10px] transition-all ${itemKind === 'beverage'
-                      ? 'bg-white text-[#111] shadow-sm'
-                      : 'text-[#666] hover:text-[#333]'
-                      }`}
-                  >
-                    Beverage
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setItemKind('food')}
-                    className={`flex-1 h-[40px] text-[14px] font-medium rounded-[10px] transition-all ${itemKind === 'food'
-                      ? 'bg-white text-[#111] shadow-sm'
-                      : 'text-[#666] hover:text-[#333]'
-                      }`}
-                  >
-                    Food
-                  </button>
-                </div>
+      {
+        coffeeModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="w-[600px] bg-white rounded-[20px] shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)] overflow-hidden max-h-[90vh] flex flex-col"
+            >
+              {/* Header */}
+              <div className="px-8 py-6 border-b border-[#EBEBEB] flex items-center justify-between">
+                <h2 className="text-[18px] font-semibold text-[#111]">{editingCoffee ? 'Edit Item' : 'Add New Item'}</h2>
+                <button
+                  onClick={closeCoffeeModal}
+                  className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-[#F5F5F5] transition-colors"
+                >
+                  <X className="w-4 h-4 text-[#999]" />
+                </button>
               </div>
 
-              {/* Divider */}
-              <div className="border-t border-[#F0F0F0]" />
 
-              {/* Name */}
-              <div>
-                <label className="block text-[12px] font-semibold text-[#333] uppercase tracking-[0.05em] mb-2">Name</label>
-                <input
-                  type="text"
-                  value={coffeeDraft.name || ''}
-                  onChange={e => handleCoffeeDraftChange('name', e.target.value)}
-                  placeholder="e.g. Robusta Espresso"
-                  className="w-full h-[46px] px-4 text-[14px] text-[#111] placeholder-[#AAA] border border-[#DDD] rounded-[12px] outline-none focus:border-[#111] transition-colors"
-                />
-              </div>
-
-              {/* 2-Column Grid: Price & Caffeine/Calories */}
-              <div className="grid grid-cols-2 gap-4">
+              {/* Form Content - 32px padding */}
+              <div className="p-8 space-y-4 overflow-y-auto flex-1">
+                {/* Item Type - Segmented Control */}
                 <div>
-                  <label className="block text-[12px] font-semibold text-[#333] uppercase tracking-[0.05em] mb-2">Price (₹)</label>
+                  <label className="block text-[12px] font-semibold text-[#333] uppercase tracking-[0.05em] mb-3">Item Type</label>
+                  <div className="flex p-1 bg-[#F5F5F5] rounded-[12px]">
+                    <button
+                      type="button"
+                      onClick={() => setItemKind('beverage')}
+                      className={`flex-1 h-[40px] text-[14px] font-medium rounded-[10px] transition-all ${itemKind === 'beverage'
+                        ? 'bg-white text-[#111] shadow-sm'
+                        : 'text-[#666] hover:text-[#333]'
+                        }`}
+                    >
+                      Beverage
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setItemKind('food')}
+                      className={`flex-1 h-[40px] text-[14px] font-medium rounded-[10px] transition-all ${itemKind === 'food'
+                        ? 'bg-white text-[#111] shadow-sm'
+                        : 'text-[#666] hover:text-[#333]'
+                        }`}
+                    >
+                      Food
+                    </button>
+                  </div>
+                </div>
+
+                {/* Divider */}
+                <div className="border-t border-[#F0F0F0]" />
+
+                {/* Name */}
+                <div>
+                  <label className="block text-[12px] font-semibold text-[#333] uppercase tracking-[0.05em] mb-2">Name</label>
                   <input
-                    type="number"
-                    value={coffeeDraft.price ?? ''}
-                    onChange={e => handleCoffeeDraftChange('price', Number(e.target.value))}
-                    placeholder="0"
+                    type="text"
+                    value={coffeeDraft.name || ''}
+                    onChange={e => handleCoffeeDraftChange('name', e.target.value)}
+                    placeholder="e.g. Robusta Espresso"
                     className="w-full h-[46px] px-4 text-[14px] text-[#111] placeholder-[#AAA] border border-[#DDD] rounded-[12px] outline-none focus:border-[#111] transition-colors"
                   />
                 </div>
 
-                {itemKind === 'beverage' ? (
+                {/* 2-Column Grid: Price & Caffeine/Calories */}
+                <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-[12px] font-semibold text-[#333] uppercase tracking-[0.05em] mb-2">Caffeine (mg)</label>
+                    <label className="block text-[12px] font-semibold text-[#333] uppercase tracking-[0.05em] mb-2">Price (₹)</label>
                     <input
                       type="number"
-                      value={coffeeDraft.caffeine_mg ?? ''}
-                      onChange={e => handleCoffeeDraftChange('caffeine_mg', e.target.value ? Number(e.target.value) : null)}
-                      placeholder="e.g. 150"
+                      value={coffeeDraft.price ?? ''}
+                      onChange={e => handleCoffeeDraftChange('price', Number(e.target.value))}
+                      placeholder="0"
                       className="w-full h-[46px] px-4 text-[14px] text-[#111] placeholder-[#AAA] border border-[#DDD] rounded-[12px] outline-none focus:border-[#111] transition-colors"
                     />
                   </div>
-                ) : (
-                  <div className="flex gap-3">
-                    <div className="flex-1">
-                      <label className="block text-[12px] font-semibold text-[#333] uppercase tracking-[0.05em] mb-2">Calories</label>
+
+                  {itemKind === 'beverage' ? (
+                    <div>
+                      <label className="block text-[12px] font-semibold text-[#333] uppercase tracking-[0.05em] mb-2">Caffeine (mg)</label>
                       <input
                         type="number"
-                        value={coffeeDraft.calories ?? ''}
-                        onChange={e => handleCoffeeDraftChange('calories', e.target.value ? Number(e.target.value) : null)}
-                        placeholder="e.g. 250"
+                        value={coffeeDraft.caffeine_mg ?? ''}
+                        onChange={e => handleCoffeeDraftChange('caffeine_mg', e.target.value ? Number(e.target.value) : null)}
+                        placeholder="e.g. 150"
                         className="w-full h-[46px] px-4 text-[14px] text-[#111] placeholder-[#AAA] border border-[#DDD] rounded-[12px] outline-none focus:border-[#111] transition-colors"
                       />
                     </div>
-                    <div className="flex items-end pb-3">
-                      <label className="inline-flex items-center gap-2 cursor-pointer whitespace-nowrap">
+                  ) : (
+                    <div className="flex gap-3">
+                      <div className="flex-1">
+                        <label className="block text-[12px] font-semibold text-[#333] uppercase tracking-[0.05em] mb-2">Calories</label>
                         <input
-                          type="checkbox"
-                          checked={!!coffeeDraft.shareable}
-                          onChange={e => handleCoffeeDraftChange('shareable', e.target.checked ? 1 : 0)}
-                          className="w-[18px] h-[18px] rounded border-[#DDD] cursor-pointer accent-black"
+                          type="number"
+                          value={coffeeDraft.calories ?? ''}
+                          onChange={e => handleCoffeeDraftChange('calories', e.target.value ? Number(e.target.value) : null)}
+                          placeholder="e.g. 250"
+                          className="w-full h-[46px] px-4 text-[14px] text-[#111] placeholder-[#AAA] border border-[#DDD] rounded-[12px] outline-none focus:border-[#111] transition-colors"
                         />
-                        <span className="text-[13px] text-[#555]">Shareable</span>
-                      </label>
+                      </div>
+                      <div className="flex items-end pb-3">
+                        <label className="inline-flex items-center gap-2 cursor-pointer whitespace-nowrap">
+                          <input
+                            type="checkbox"
+                            checked={!!coffeeDraft.shareable}
+                            onChange={e => handleCoffeeDraftChange('shareable', e.target.checked ? 1 : 0)}
+                            className="w-[18px] h-[18px] rounded border-[#DDD] cursor-pointer accent-black"
+                          />
+                          <span className="text-[13px] text-[#555]">Shareable</span>
+                        </label>
+                      </div>
                     </div>
-                  </div>
-                )}
-              </div>
-
-
-              {/* Divider */}
-              <div className="border-t border-[#F0F0F0]" />
-
-              {/* 2-Column Grid: Category & Sub-Category */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-[12px] font-semibold text-[#333] uppercase tracking-[0.05em] mb-2">Category</label>
-                  <select
-                    value={coffeeDraft.category_id || ''}
-                    onChange={e => handleCoffeeDraftChange('category_id', e.target.value)}
-                    className="w-full h-[46px] px-4 text-[14px] text-[#111] border border-[#DDD] rounded-[12px] outline-none focus:border-[#111] bg-white cursor-pointer appearance-none bg-[url('data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2012%2012%22%3E%3Cpath%20fill%3D%22%23666%22%20d%3D%22M2%204l4%204%204-4%22%2F%3E%3C%2Fsvg%3E')] bg-[length:12px] bg-[right_16px_center] bg-no-repeat transition-colors"
-                  >
-                    <option value="">Select category</option>
-                    {categories.map(cat => (
-                      <option key={cat.id} value={cat.id}>{cat.name}</option>
-                    ))}
-                    <option value="__NEW__">+ Create new</option>
-                  </select>
-                  {coffeeDraft.category_id === '__NEW__' && (
-                    <input
-                      type="text"
-                      value={newCategoryName}
-                      onChange={e => setNewCategoryName(e.target.value)}
-                      placeholder="New category name"
-                      className="mt-2 w-full h-[46px] px-4 text-[14px] text-[#111] placeholder-[#AAA] border border-[#DDD] rounded-[12px] outline-none focus:border-[#111] transition-colors"
-                    />
                   )}
                 </div>
 
-                <div>
-                  <label className="block text-[12px] font-semibold text-[#333] uppercase tracking-[0.05em] mb-2">Sub-category</label>
-                  <select
-                    value={coffeeDraft.sub_category_id || ''}
-                    onChange={e => handleCoffeeDraftChange('sub_category_id', e.target.value)}
-                    disabled={!coffeeDraft.category_id}
-                    className="w-full h-[46px] px-4 text-[14px] text-[#111] border border-[#DDD] rounded-[12px] outline-none focus:border-[#111] bg-white cursor-pointer appearance-none bg-[url('data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2012%2012%22%3E%3Cpath%20fill%3D%22%23666%22%20d%3D%22M2%204l4%204%204-4%22%2F%3E%3C%2Fsvg%3E')] bg-[length:12px] bg-[right_16px_center] bg-no-repeat disabled:bg-[#F5F5F5] disabled:text-[#999] disabled:cursor-not-allowed transition-colors"
-                  >
-                    <option value="">Select sub-category</option>
-                    {subCategories.map(sub => (
-                      <option key={sub.id} value={sub.id}>{sub.name}</option>
-                    ))}
-                    <option value="__NEW__">+ Create new</option>
-                  </select>
-                  {coffeeDraft.sub_category_id === '__NEW__' && (
-                    <input
-                      type="text"
-                      value={newSubCategoryName}
-                      onChange={e => setNewSubCategoryName(e.target.value)}
-                      placeholder="New sub-category name"
-                      className="mt-2 w-full h-[46px] px-4 text-[14px] text-[#111] placeholder-[#AAA] border border-[#DDD] rounded-[12px] outline-none focus:border-[#111] transition-colors"
-                    />
-                  )}
-                </div>
-              </div>
 
+                {/* Divider */}
+                <div className="border-t border-[#F0F0F0]" />
 
-              {/* Divider */}
-              <div className="border-t border-[#F0F0F0]" />
-
-              {/* Image URL */}
-              <div>
-                <label className="block text-[12px] font-semibold text-[#333] uppercase tracking-[0.05em] mb-2">Image URL</label>
-                <input
-                  type="text"
-                  value={coffeeDraft.image || ''}
-                  onChange={e => handleCoffeeDraftChange('image', e.target.value)}
-                  placeholder="/media/pic1.jpeg"
-                  className="w-full h-[46px] px-4 text-[14px] text-[#111] placeholder-[#AAA] border border-[#DDD] rounded-[12px] outline-none focus:border-[#111] transition-colors"
-                />
-              </div>
-
-              {/* Description */}
-              <div>
-                <label className="block text-[12px] font-semibold text-[#333] uppercase tracking-[0.05em] mb-2">Description</label>
-                <textarea
-                  value={coffeeDraft.description || ''}
-                  onChange={e => handleCoffeeDraftChange('description', e.target.value)}
-                  placeholder="Brief description for staff and customers..."
-                  rows={3}
-                  className="w-full px-4 py-3 text-[14px] text-[#111] placeholder-[#AAA] border border-[#DDD] rounded-[12px] outline-none focus:border-[#111] resize-none transition-colors"
-                />
-              </div>
-
-              {/* Tags */}
-              <div className="relative">
-                <label className="block text-[12px] font-semibold text-[#333] uppercase tracking-[0.05em] mb-2">Tags</label>
-
-
-                {/* Selected Tags */}
-                {selectedTags.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mb-3">
-                    {selectedTags.map(tag => (
-                      <span
-                        key={tag.id}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#F5F5F5] rounded-[8px] text-[13px] text-[#333]"
-                      >
-                        {tag.name}
-                        <button
-                          type="button"
-                          onClick={() => setSelectedTags(prev => prev.filter(t => t.id !== tag.id))}
-                          className="text-[#999] hover:text-[#111]"
-                        >
-                          <X className="w-3.5 h-3.5" />
-                        </button>
-                      </span>
-                    ))}
+                {/* 2-Column Grid: Category & Sub-Category */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[12px] font-semibold text-[#333] uppercase tracking-[0.05em] mb-2">Category</label>
+                    <select
+                      value={coffeeDraft.category_id || ''}
+                      onChange={e => handleCoffeeDraftChange('category_id', e.target.value)}
+                      className="w-full h-[46px] px-4 text-[14px] text-[#111] border border-[#DDD] rounded-[12px] outline-none focus:border-[#111] bg-white cursor-pointer appearance-none bg-[url('data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2012%2012%22%3E%3Cpath%20fill%3D%22%23666%22%20d%3D%22M2%204l4%204%204-4%22%2F%3E%3C%2Fsvg%3E')] bg-[length:12px] bg-[right_16px_center] bg-no-repeat transition-colors"
+                    >
+                      <option value="">Select category</option>
+                      {categories.map(cat => (
+                        <option key={cat.id} value={cat.id}>{cat.name}</option>
+                      ))}
+                      <option value="__NEW__">+ Create new</option>
+                    </select>
+                    {coffeeDraft.category_id === '__NEW__' && (
+                      <input
+                        type="text"
+                        value={newCategoryName}
+                        onChange={e => setNewCategoryName(e.target.value)}
+                        placeholder="New category name"
+                        className="mt-2 w-full h-[46px] px-4 text-[14px] text-[#111] placeholder-[#AAA] border border-[#DDD] rounded-[12px] outline-none focus:border-[#111] transition-colors"
+                      />
+                    )}
                   </div>
-                )}
 
-                {/* Tag Search */}
-                <input
-                  type="text"
-                  value={tagSearchQuery}
-                  onChange={e => {
-                    setTagSearchQuery(e.target.value);
-                    setShowTagDropdown(true);
-                  }}
-                  onFocus={() => setShowTagDropdown(true)}
-                  placeholder="Search or create tags..."
-                  className="w-full h-[46px] px-4 text-[14px] text-[#111] placeholder-[#AAA] border border-[#DDD] rounded-[12px] outline-none focus:border-[#111] transition-colors"
-                />
+                  <div>
+                    <label className="block text-[12px] font-semibold text-[#333] uppercase tracking-[0.05em] mb-2">Sub-category</label>
+                    <select
+                      value={coffeeDraft.sub_category_id || ''}
+                      onChange={e => handleCoffeeDraftChange('sub_category_id', e.target.value)}
+                      disabled={!coffeeDraft.category_id}
+                      className="w-full h-[46px] px-4 text-[14px] text-[#111] border border-[#DDD] rounded-[12px] outline-none focus:border-[#111] bg-white cursor-pointer appearance-none bg-[url('data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2012%2012%22%3E%3Cpath%20fill%3D%22%23666%22%20d%3D%22M2%204l4%204%204-4%22%2F%3E%3C%2Fsvg%3E')] bg-[length:12px] bg-[right_16px_center] bg-no-repeat disabled:bg-[#F5F5F5] disabled:text-[#999] disabled:cursor-not-allowed transition-colors"
+                    >
+                      <option value="">Select sub-category</option>
+                      {subCategories.map(sub => (
+                        <option key={sub.id} value={sub.id}>{sub.name}</option>
+                      ))}
+                      <option value="__NEW__">+ Create new</option>
+                    </select>
+                    {coffeeDraft.sub_category_id === '__NEW__' && (
+                      <input
+                        type="text"
+                        value={newSubCategoryName}
+                        onChange={e => setNewSubCategoryName(e.target.value)}
+                        placeholder="New sub-category name"
+                        className="mt-2 w-full h-[46px] px-4 text-[14px] text-[#111] placeholder-[#AAA] border border-[#DDD] rounded-[12px] outline-none focus:border-[#111] transition-colors"
+                      />
+                    )}
+                  </div>
+                </div>
 
-                {/* Tag Dropdown */}
-                {showTagDropdown && (
-                  <div className="absolute z-20 w-full mt-2 bg-white border border-black/10 rounded-[8px] shadow-lg max-h-[200px] overflow-y-auto">
-                    {allTags
-                      .filter(tag =>
-                        tag.name.toLowerCase().includes(tagSearchQuery.toLowerCase()) &&
-                        !selectedTags.some(st => st.id === tag.id)
-                      )
-                      .slice(0, 8)
-                      .map(tag => (
-                        <button
+
+                {/* Divider */}
+                <div className="border-t border-[#F0F0F0]" />
+
+                {/* Image URL */}
+                <div>
+                  <label className="block text-[12px] font-semibold text-[#333] uppercase tracking-[0.05em] mb-2">Image URL</label>
+                  <input
+                    type="text"
+                    value={coffeeDraft.image || ''}
+                    onChange={e => handleCoffeeDraftChange('image', e.target.value)}
+                    placeholder="/media/pic1.jpeg"
+                    className="w-full h-[46px] px-4 text-[14px] text-[#111] placeholder-[#AAA] border border-[#DDD] rounded-[12px] outline-none focus:border-[#111] transition-colors"
+                  />
+                </div>
+
+                {/* Description */}
+                <div>
+                  <label className="block text-[12px] font-semibold text-[#333] uppercase tracking-[0.05em] mb-2">Description</label>
+                  <textarea
+                    value={coffeeDraft.description || ''}
+                    onChange={e => handleCoffeeDraftChange('description', e.target.value)}
+                    placeholder="Brief description for staff and customers..."
+                    rows={3}
+                    className="w-full px-4 py-3 text-[14px] text-[#111] placeholder-[#AAA] border border-[#DDD] rounded-[12px] outline-none focus:border-[#111] resize-none transition-colors"
+                  />
+                </div>
+
+                {/* Tags */}
+                <div className="relative">
+                  <label className="block text-[12px] font-semibold text-[#333] uppercase tracking-[0.05em] mb-2">Tags</label>
+
+
+                  {/* Selected Tags */}
+                  {selectedTags.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mb-3">
+                      {selectedTags.map(tag => (
+                        <span
                           key={tag.id}
-                          type="button"
-                          onClick={() => {
-                            setSelectedTags(prev => [...prev, tag]);
-                            setTagSearchQuery('');
-                            setShowTagDropdown(false);
-                          }}
-                          className="w-full text-left px-4 py-2.5 text-[13px] hover:bg-[#FAFAFA] transition-colors"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#F5F5F5] rounded-[8px] text-[13px] text-[#333]"
                         >
                           {tag.name}
-                        </button>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedTags(prev => prev.filter(t => t.id !== tag.id))}
+                            className="text-[#999] hover:text-[#111]"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </span>
                       ))}
+                    </div>
+                  )}
 
-                    {(tagSearchQuery ?? '').trim() && !allTags.some(t =>
-                      t.name.toLowerCase() === (tagSearchQuery ?? '').trim().toLowerCase()
-                    ) && (
-                        <button
-                          type="button"
-                          onClick={async () => {
-                            try {
-                              const trimmedTag = (tagSearchQuery ?? '').trim();
-                              const res = await fetch(`${API_BASE_URL}/api/tags`, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ name: trimmedTag })
-                              });
-                              if (res.ok) {
-                                const newTag = await res.json();
-                                setAllTags(prev => [...prev, newTag]);
-                                setSelectedTags(prev => [...prev, newTag]);
-                                setTagSearchQuery('');
-                                setShowTagDropdown(false);
+                  {/* Tag Search */}
+                  <input
+                    type="text"
+                    value={tagSearchQuery}
+                    onChange={e => {
+                      setTagSearchQuery(e.target.value);
+                      setShowTagDropdown(true);
+                    }}
+                    onFocus={() => setShowTagDropdown(true)}
+                    placeholder="Search or create tags..."
+                    className="w-full h-[46px] px-4 text-[14px] text-[#111] placeholder-[#AAA] border border-[#DDD] rounded-[12px] outline-none focus:border-[#111] transition-colors"
+                  />
+
+                  {/* Tag Dropdown */}
+                  {showTagDropdown && (
+                    <div className="absolute z-20 w-full mt-2 bg-white border border-black/10 rounded-[8px] shadow-lg max-h-[200px] overflow-y-auto">
+                      {allTags
+                        .filter(tag =>
+                          tag.name.toLowerCase().includes(tagSearchQuery.toLowerCase()) &&
+                          !selectedTags.some(st => st.id === tag.id)
+                        )
+                        .slice(0, 8)
+                        .map(tag => (
+                          <button
+                            key={tag.id}
+                            type="button"
+                            onClick={() => {
+                              setSelectedTags(prev => [...prev, tag]);
+                              setTagSearchQuery('');
+                              setShowTagDropdown(false);
+                            }}
+                            className="w-full text-left px-4 py-2.5 text-[13px] hover:bg-[#FAFAFA] transition-colors"
+                          >
+                            {tag.name}
+                          </button>
+                        ))}
+
+                      {(tagSearchQuery ?? '').trim() && !allTags.some(t =>
+                        t.name.toLowerCase() === (tagSearchQuery ?? '').trim().toLowerCase()
+                      ) && (
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              try {
+                                const trimmedTag = (tagSearchQuery ?? '').trim();
+                                const res = await fetch(`${API_BASE_URL}/api/tags`, {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ name: trimmedTag })
+                                });
+                                if (res.ok) {
+                                  const newTag = await res.json();
+                                  setAllTags(prev => [...prev, newTag]);
+                                  setSelectedTags(prev => [...prev, newTag]);
+                                  setTagSearchQuery('');
+                                  setShowTagDropdown(false);
+                                }
+                              } catch (err) {
+                                console.error('Error creating tag:', err);
                               }
-                            } catch (err) {
-                              console.error('Error creating tag:', err);
-                            }
-                          }}
-                          className="w-full text-left px-4 py-2.5 text-[13px] text-blue-600 hover:bg-blue-50 transition-colors border-t border-black/5"
-                        >
-                          + Create "{(tagSearchQuery ?? '').trim()}"
-                        </button>
-                      )}
+                            }}
+                            className="w-full text-left px-4 py-2.5 text-[13px] text-blue-600 hover:bg-blue-50 transition-colors border-t border-black/5"
+                          >
+                            + Create "{(tagSearchQuery ?? '').trim()}"
+                          </button>
+                        )}
 
-                    <button
-                      type="button"
-                      onClick={() => setShowTagDropdown(false)}
-                      className="w-full text-left px-4 py-2 text-[12px] text-zinc-400 hover:bg-[#FAFAFA] border-t border-black/5"
-                    >
-                      Close
-                    </button>
-                  </div>
-                )}
+                      <button
+                        type="button"
+                        onClick={() => setShowTagDropdown(false)}
+                        className="w-full text-left px-4 py-2 text-[12px] text-zinc-400 hover:bg-[#FAFAFA] border-t border-black/5"
+                      >
+                        Close
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
 
-            {/* Sticky Footer */}
-            <div className="px-8 py-5 bg-[#FAFAFA] border-t border-[#EBEBEB] flex justify-end gap-3">
-              <button
-                onClick={closeCoffeeModal}
-                className="h-[42px] px-5 text-[14px] font-medium text-[#555] hover:text-[#111] hover:bg-[#F0F0F0] rounded-[10px] transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={saveCoffeeItem}
-                className="h-[42px] px-6 text-[14px] font-medium text-white bg-[#111] hover:bg-black rounded-[10px] transition-colors"
-              >
-                {editingCoffee ? 'Save Changes' : 'Add Item'}
-              </button>
-            </div>
-          </motion.div>
-        </div >
-      )}
+              {/* Sticky Footer */}
+              <div className="px-8 py-5 bg-[#FAFAFA] border-t border-[#EBEBEB] flex justify-end gap-3">
+                <button
+                  onClick={closeCoffeeModal}
+                  className="h-[42px] px-5 text-[14px] font-medium text-[#555] hover:text-[#111] hover:bg-[#F0F0F0] rounded-[10px] transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={saveCoffeeItem}
+                  className="h-[42px] px-6 text-[14px] font-medium text-white bg-[#111] hover:bg-black rounded-[10px] transition-colors"
+                >
+                  {editingCoffee ? 'Save Changes' : 'Add Item'}
+                </button>
+              </div>
+            </motion.div>
+          </div >
+        )
+      }
 
       {
         artModalOpen && (
@@ -1588,8 +1724,128 @@ const CoffeeTable: React.FC<{
 );
 
 // Orders table
-const OrdersTable: React.FC<{ items: Order[] }> = ({ items }) => (
-  <div className="bg-white border border-black/5 rounded-xl overflow-hidden">
+const OrderDetailsModal: React.FC<{
+  order: Order;
+  onClose: () => void;
+  onUpdateStatus: (id: string, status: string) => void;
+}> = ({ order, onClose, onUpdateStatus }) => {
+  const [status, setStatus] = useState(order.status || 'placed');
+  const statusOptions = ['placed', 'preparing', 'ready', 'completed', 'cancelled'];
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        className="bg-white w-full max-w-4xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+      >
+        <div className="px-8 py-6 border-b border-black/5 flex justify-between items-center bg-[#F9F8F4]">
+          <div>
+            <h2 className="text-xl font-serif font-bold text-black">Order Details</h2>
+            <p className="text-xs text-zinc-500 font-mono mt-1 uppercase tracking-wider">#{order.id.slice(-8)}</p>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-black/5 rounded-full text-zinc-500 hover:text-black transition-colors">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-8 font-sans custom-scrollbar">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+            <div className="bg-zinc-50/50 p-6 rounded-xl border border-black/5">
+              <h3 className="text-xs uppercase tracking-[0.2em] text-zinc-400 font-bold mb-4">Customer Info</h3>
+              <div className="space-y-3 text-sm">
+                <div className="flex justify-between border-b border-dashed border-black/10 pb-2">
+                  <span className="text-zinc-500">Name</span>
+                  <span className="font-medium">{order.customer.name}</span>
+                </div>
+                <div className="flex justify-between border-b border-dashed border-black/10 pb-2">
+                  <span className="text-zinc-500">Phone</span>
+                  <span className="font-medium font-mono text-xs">{order.customer.phone}</span>
+                </div>
+                <div className="flex justify-between pb-1">
+                  <span className="text-zinc-500">Email</span>
+                  <span className="font-medium text-xs">{order.customer.email}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-zinc-50/50 p-6 rounded-xl border border-black/5">
+              <h3 className="text-xs uppercase tracking-[0.2em] text-zinc-400 font-bold mb-4">Order Info</h3>
+              <div className="space-y-3 text-sm">
+                <div className="flex justify-between border-b border-dashed border-black/10 pb-2">
+                  <span className="text-zinc-500">Date</span>
+                  <span className="font-medium text-xs">{new Date(order.date).toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between border-b border-dashed border-black/10 pb-2">
+                  <span className="text-zinc-500">Pickup</span>
+                  <span className="font-medium">{order.pickupTime}</span>
+                </div>
+                <div className="flex justify-between pb-1">
+                  <span className="text-zinc-500">Payment</span>
+                  <span className={`font-medium text-xs uppercase tracking-wider ${order.payment_status === 'PAID' ? 'text-emerald-600' : 'text-amber-600'}`}>
+                    {order.payment_method}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="mb-8 border border-black/5 rounded-xl overflow-hidden shadow-sm">
+            <table className="w-full text-sm text-left">
+              <thead className="bg-[#111] text-[#F9F8F4] text-[10px] uppercase tracking-[0.2em]">
+                <tr>
+                  <th className="px-6 py-4 font-normal">Item</th>
+                  <th className="px-6 py-4 font-normal text-center">Qty</th>
+                  <th className="px-6 py-4 font-normal text-right">Unit Price</th>
+                  <th className="px-6 py-4 font-normal text-right">Total</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-black/5 bg-white">
+                {order.items.map((item, idx) => (
+                  <tr key={idx} className="hover:bg-zinc-50/50 transition-colors">
+                    <td className="px-6 py-4 font-medium text-zinc-800">{item.name}</td>
+                    <td className="px-6 py-4 text-center text-zinc-500">{item.quantity}</td>
+                    <td className="px-6 py-4 text-right text-zinc-500">₹{item.price}</td>
+                    <td className="px-6 py-4 text-right font-semibold text-zinc-900">₹{item.price * item.quantity}</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot className="bg-zinc-50/80">
+                <tr>
+                  <td colSpan={3} className="px-6 py-3 text-right text-zinc-500 uppercase text-[10px] tracking-widest font-bold">Subtotal</td>
+                  <td className="px-6 py-3 text-right font-medium">₹{order.total}</td>
+                </tr>
+                <tr>
+                  <td colSpan={3} className="px-6 py-3 text-right text-zinc-500 uppercase text-[10px] tracking-widest font-bold">Discounts</td>
+                  <td className="px-6 py-3 text-right font-medium text-emerald-600">-₹0</td>
+                </tr>
+                <tr className="border-t border-black/5 bg-white">
+                  <td colSpan={3} className="px-6 py-4 text-right text-black uppercase text-[11px] tracking-widest font-bold">Grand Total</td>
+                  <td className="px-6 py-4 text-right text-xl font-serif italic text-black">₹{order.total}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+
+          <div className="flex flex-col md:flex-row items-end md:items-center justify-end gap-6 pt-4 border-t border-black/5">
+            <button
+              onClick={() => window.print()}
+              className="flex items-center gap-2 px-5 py-3 bg-black text-white rounded-lg hover:bg-zinc-800 transition-all text-[11px] uppercase tracking-widest font-bold shadow-lg"
+            >
+              <ClipboardList className="w-4 h-4" />
+              Print Invoice
+            </button>
+          </div>
+        </div>
+      </motion.div>
+    </div>
+  );
+};
+
+// Orders table
+const OrdersTable: React.FC<{ items: Order[]; onRowClick: (order: Order) => void }> = ({ items, onRowClick }) => (
+  <div className="bg-white border border-black/5 rounded-xl overflow-hidden shadow-sm">
     <table className="w-full text-left font-sans text-sm">
       <thead className="bg-[#F9F8F4] text-[10px] uppercase tracking-[0.25em] text-zinc-500">
         <tr>
@@ -1598,8 +1854,7 @@ const OrdersTable: React.FC<{ items: Order[] }> = ({ items }) => (
           <th className="px-6 py-3 font-semibold">Phone</th>
           <th className="px-6 py-3 font-semibold">Items</th>
           <th className="px-6 py-3 font-semibold">Total (₹)</th>
-          <th className="px-6 py-3 font-semibold">Payment</th>
-          <th className="px-6 py-3 font-semibold">Pickup Time</th>
+          <th className="px-6 py-3 font-semibold">Status</th>
           <th className="px-6 py-3 font-semibold">Date</th>
         </tr>
       </thead>
@@ -1607,19 +1862,30 @@ const OrdersTable: React.FC<{ items: Order[] }> = ({ items }) => (
         {items.map(order => (
           <tr
             key={order.id}
-            className="border-t border-black/5 hover:bg-[#F9F8F4]/60 transition-colors"
+            onClick={() => onRowClick(order)}
+            className="border-t border-black/5 hover:bg-[#F9F8F4]/60 transition-colors cursor-pointer group"
           >
-            <td className="px-6 py-4 text-xs font-mono">{order.id}</td>
-            <td className="px-6 py-4 text-sm">{order.customer.name}</td>
-            <td className="px-6 py-4 text-sm text-zinc-700">{order.customer.phone}</td>
-            <td className="px-6 py-4 text-sm text-zinc-700">{order.items.length}</td>
-            <td className="px-6 py-4 text-sm font-semibold">₹{order.total.toFixed(0)}</td>
-            <td className="px-6 py-4 text-xs font-sans uppercase tracking-[0.1em] text-zinc-600">
-              {order.payment_method?.includes('Counter') ? 'Counter' : (order.payment_method?.includes('Online') ? 'Online' : order.payment_method || 'Counter')}
+            <td className="px-6 py-4 text-xs font-mono font-medium text-zinc-500 group-hover:text-black">
+              #{order.id.slice(-6)}
             </td>
-            <td className="px-6 py-4 text-sm text-zinc-700">{order.pickupTime || 'Order from store'}</td>
-            <td className="px-6 py-4 text-xs text-zinc-500">
-              {order.date}
+            <td className="px-6 py-4 text-sm font-medium">{order.customer.name}</td>
+            <td className="px-6 py-4 text-sm text-zinc-500 font-mono text-xs">{order.customer.phone}</td>
+            <td className="px-6 py-4 text-sm text-zinc-700">
+              <span className="inline-flex items-center justify-center w-6 h-6 bg-zinc-100 rounded-full text-xs font-bold">
+                {order.items.length}
+              </span>
+            </td>
+            <td className="px-6 py-4 text-sm font-semibold">₹{order.total.toFixed(0)}</td>
+            <td className="px-6 py-4">
+              <span className={`px-3 py-1 text-[9px] uppercase tracking-[0.2em] font-bold rounded-full border ${(order.status === 'completed') ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
+                (order.status === 'cancelled') ? 'bg-red-50 text-red-600 border-red-100' :
+                  'bg-amber-50 text-amber-600 border-amber-100'
+                }`}>
+                {order.status || 'placed'}
+              </span>
+            </td>
+            <td className="px-6 py-4 text-xs text-zinc-400">
+              {new Date(order.date).toLocaleDateString()}
             </td>
           </tr>
         ))}
