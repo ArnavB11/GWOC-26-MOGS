@@ -7,7 +7,9 @@ export interface CoffeeAdminItem {
   id: string;
   name: string;
   // Legacy category field (for backward compatibility)
+  // Legacy category field (for backward compatibility)
   category?: string;
+  category_legacy?: string;
   // New FK-based category fields
   category_id?: string | null;
   sub_category_id?: string | null;

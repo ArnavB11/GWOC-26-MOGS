@@ -40,7 +40,7 @@ export enum Page {
   CART = 'cart',
   WORKSHOPS = 'workshops',
   ART = 'art',
-  AWARENESS = 'philosophy',
+  PHILOSOPHY = 'philosophy',
   ROBUSTA_STORY = 'robusta-story',
   FIND_STORE = 'find_store',
   FAQ = 'faq',

@@ -81,18 +81,18 @@ export default function ChatWidget() {
       });
       const data = await res.json();
 
-      let botReply = "I'm not sure how to respond to that.";
+      let botResponse = "I'm not sure how to respond to that.";
 
       if (data.action === 'navigate' && data.parameters?.route) {
-        botReply = `Taking you to the ${data.parameters.route.replace('/', '')} page...`;
+        botResponse = `Taking you to the ${data.parameters.route.replace('/', '')} page...`;
         setTimeout(() => { window.location.href = data.parameters?.route || '/'; }, 1500);
       } else if (data.action === 'respond' && data.parameters?.message) {
-        botReply = data.parameters.message;
+        botResponse = data.parameters.message;
       } else if (data.reply) {
-        botReply = data.reply;
+        botResponse = data.reply;
       }
 
-      setMessages(prev => [...prev, { text: botReply, isUser: false }]);
+      setMessages(prev => [...prev, { text: botResponse, isUser: false }]);
     } catch (error) {
       console.error("Chat error:", error);
       setMessages(prev => [...prev, { text: "Connection error.", isUser: false }]);
@@ -183,8 +183,6 @@ export default function ChatWidget() {
                 </button>
               </div>
             </div>
-
-            {/* Chat Messages */}
             <div className={`chat-messages flex-1 overflow-y-auto flex flex-col gap-4 bg-[#F3EFE0] ${isMobile ? 'p-3' : 'p-5'}`}>
               {messages.map((msg, index) => (
                 <div key={index}
@@ -240,3 +238,4 @@ export default function ChatWidget() {
     </div>
   );
 }
+

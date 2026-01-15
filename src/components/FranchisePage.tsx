@@ -1,11 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { motion, AnimatePresence, Variants, useScroll, useTransform } from 'framer-motion';
+import { motion as motionBase, AnimatePresence as AnimatePresenceBase, Variants, useScroll, useTransform } from 'framer-motion';
 import {
     Coffee, Palette, Users, CheckCircle,
     TrendingUp, DollarSign, MapPin, Heart, ChevronDown, X
 } from 'lucide-react';
 import { API_BASE_URL } from '../config';
+
+// Fix for framer-motion compatibility
+// The environment requires casting these components to 'any' to avoid type/runtime issues
+const motion = motionBase as any;
+const AnimatePresence = AnimatePresenceBase as any;
 
 interface FaqItem {
     id: number;
@@ -14,6 +19,11 @@ interface FaqItem {
 }
 
 const FranchisePage: React.FC = () => {
+    // Debug logging to confirm render
+    useEffect(() => {
+        console.log("FranchisePage mounted");
+    }, []);
+
     const [activeFaq, setActiveFaq] = useState<number | null>(null);
     const [faqs, setFaqs] = useState<FaqItem[]>([]);
     const [contactNumber, setContactNumber] = useState<string>('');
@@ -126,7 +136,7 @@ const FranchisePage: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen bg-[#F9F8F4] overflow-hidden text-[#1A1A1A]" ref={targetRef}>
+        <div className="min-h-screen bg-[#F3EFE0] overflow-hidden text-[#1A1A1A]" ref={targetRef}>
 
             {/* 1. HERO SECTION - Clean, No Image, Just Vibe */}
             <section className="relative min-h-[90vh] flex items-center justify-center overflow-hidden pt-20">
@@ -170,9 +180,9 @@ const FranchisePage: React.FC = () => {
                                 Built for
                             </motion.h1>
                         </div>
-                        <div className="overflow-hidden mb-8 md:mb-12">
+                        <div className="overflow-hidden mb-8 md:mb-12 pb-8 md:pb-2">
                             <motion.h1
-                                className="text-[13vw] md:text-[8vw] leading-[0.85] font-serif italic tracking-tighter text-[#A35D36]"
+                                className="text-[13vw] md:text-[8vw] leading-[0.85] font-serif italic tracking-tighter text-[#A35D36] py-4"
                                 initial={{ y: "100%" }}
                                 animate={{ y: 0 }}
                                 transition={{ duration: 1.2, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
