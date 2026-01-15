@@ -168,8 +168,8 @@ const SalesInsights: React.FC = () => {
                                 <XAxis
                                     dataKey="name"
                                     stroke="#0a0a0a"
-                                    strokeOpacity={0.3}
-                                    tick={{ fontSize: 10, fontFamily: 'sans-serif', fill: '#71717a' }}
+                                    strokeOpacity={0.1}
+                                    tick={{ fontSize: 11, fontFamily: 'sans-serif', fill: '#0a0a0a', fontWeight: 500 }}
                                     tickLine={false}
                                     axisLine={false}
                                     dy={10}
@@ -177,13 +177,14 @@ const SalesInsights: React.FC = () => {
                                 <YAxis
                                     tickFormatter={(value) => `₹${value}`}
                                     stroke="#0a0a0a"
-                                    strokeOpacity={0.3}
-                                    tick={{ fontSize: 10, fontFamily: 'sans-serif', fill: '#71717a' }}
+                                    strokeOpacity={0.1}
+                                    tick={{ fontSize: 11, fontFamily: 'sans-serif', fill: '#0a0a0a', fontWeight: 500 }}
                                     tickLine={false}
                                     axisLine={false}
                                     dx={-10}
                                 />
                                 <Tooltip
+                                    cursor={{ stroke: '#0a0a0a', strokeWidth: 1, strokeDasharray: '4 4' }}
                                     contentStyle={{
                                         backgroundColor: '#0a0a0a',
                                         border: 'none',
@@ -191,7 +192,7 @@ const SalesInsights: React.FC = () => {
                                         color: '#F9F8F4',
                                         boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
                                     }}
-                                    itemStyle={{ color: '#F9F8F4', fontSize: '11px', fontFamily: 'sans-serif' }}
+                                    itemStyle={{ color: '#F9F8F4', fontSize: '12px', fontFamily: 'sans-serif' }}
                                     labelStyle={{ color: '#a1a1aa', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '4px' }}
                                     formatter={(value: number) => [`₹${value}`, 'Revenue']}
                                 />
@@ -202,7 +203,7 @@ const SalesInsights: React.FC = () => {
                                     strokeWidth={2}
                                     fillOpacity={1}
                                     fill="url(#colorValue)"
-                                    activeDot={{ r: 4, stroke: '#F9F8F4', strokeWidth: 2, fill: '#0a0a0a' }}
+                                    activeDot={{ r: 6, stroke: '#F9F8F4', strokeWidth: 2, fill: '#0a0a0a' }}
                                 />
                             </AreaChart>
                         </ResponsiveContainer>

@@ -98,6 +98,7 @@ export interface Order {
   pickupTime: string;
   payment_method?: string;
   payment_status?: string;
+  status?: string; // e.g. 'placed', 'completed'
 }
 
 interface StoredData {
