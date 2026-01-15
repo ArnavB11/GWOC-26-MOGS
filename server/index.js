@@ -510,6 +510,79 @@ app.get('/api/orders', async (req, res) => {
     res.json(parsed);
 });
 
+// Helper function to decrement art item stock
+async function decrementArtItemStock(artId, quantity = 1) {
+    try {
+        // Normalize the art ID to string and trim
+        const artIdStr = String(artId).trim();
+        const decrementAmount = parseInt(String(quantity)) || 1;
+        
+        if (!artIdStr) {
+            return { success: false, message: 'Invalid art item ID' };
+        }
+
+        // Get current stock - use .maybeSingle() to avoid error if not found
+        const { data: artItem, error: fetchError } = await db
+            .from('art_items')
+            .select('id, stock, status')
+            .eq('id', artIdStr)
+            .maybeSingle();
+
+        if (fetchError) {
+            console.error(`[STOCK] Error fetching art item ${artIdStr}:`, fetchError);
+            return { success: false, message: fetchError.message };
+        }
+
+        // If item doesn't exist in art_items, it's not an art item - that's OK
+        if (!artItem) {
+            return { success: false, message: 'Item not found in art_items table' };
+        }
+
+        const currentStock = parseInt(String(artItem.stock)) || 0;
+
+        // Can't decrement if already at 0
+        if (currentStock <= 0) {
+            return { success: false, message: 'Item already out of stock' };
+        }
+
+        // Calculate new stock
+        const newStock = Math.max(0, currentStock - decrementAmount);
+        const newStatus = newStock > 0 ? 'Available' : 'Sold';
+
+        // Update stock and status - use update() without select first for better performance
+        const { error: updateError } = await db
+            .from('art_items')
+            .update({
+                stock: newStock,
+                status: newStatus
+            })
+            .eq('id', artIdStr);
+
+        if (updateError) {
+            console.error(`[STOCK] Error updating stock for art item ${artIdStr}:`, updateError);
+            return { success: false, message: updateError.message };
+        }
+
+        // Verify the update worked by fetching the updated item
+        const { data: verifiedItem } = await db
+            .from('art_items')
+            .select('stock, status')
+            .eq('id', artIdStr)
+            .single();
+
+        if (verifiedItem && parseInt(String(verifiedItem.stock)) === newStock) {
+            console.log(`[STOCK] Successfully decremented stock for art item ${artIdStr}: ${currentStock} -> ${newStock}`);
+            return { success: true, oldStock: currentStock, newStock };
+        } else {
+            console.error(`[STOCK] Stock update verification failed for ${artIdStr}. Expected: ${newStock}, Got: ${verifiedItem?.stock}`);
+            return { success: false, message: 'Stock update verification failed' };
+        }
+    } catch (error) {
+        console.error(`[STOCK] Unexpected error decrementing stock for art item ${artId}:`, error);
+        return { success: false, message: error.message };
+    }
+}
+
 app.post('/api/orders', async (req, res) => {
     try {
         const { id, customer, items, total, pickupTime, paymentMethod } = req.body;
@@ -585,6 +658,31 @@ app.post('/api/orders', async (req, res) => {
             });
         }
         console.log('Order saved successfully:', id, 'at', orderDate);
+
+        // Decrement stock for art items in the order - MUST complete before response
+        if (Array.isArray(items) && items.length > 0) {
+            const stockUpdatePromises = items.map(async (item) => {
+                if (item && item.id) {
+                    const quantity = parseInt(String(item.quantity)) || 1;
+                    return await decrementArtItemStock(String(item.id), quantity);
+                }
+                return { success: false, message: 'Invalid item structure' };
+            });
+            
+            // Wait for all stock updates to complete
+            const stockResults = await Promise.all(stockUpdatePromises);
+            
+            // Log results
+            stockResults.forEach((result, index) => {
+                if (result.success) {
+                    console.log(`[STOCK] Item ${items[index]?.id}: Stock decremented successfully`);
+                } else if (result.message !== 'Item not found in art_items table') {
+                    // Only log if it's not just a non-art item
+                    console.warn(`[STOCK] Item ${items[index]?.id}: ${result.message}`);
+                }
+            });
+        }
+
         res.status(200).json({ ...req.body, date: orderDate, status: orderStatus });
     } catch (error) {
         console.error('Unexpected error in order creation:', error);
@@ -1215,6 +1313,31 @@ app.post('/api/payments/verify-payment', async (req, res) => {
                 return res.status(500).json({ error: 'Payment verified but failed to save order', details: error.message });
             }
             console.log('[PAYMENT] Order saved:', id, 'at', confirmedDate);
+
+            // Decrement stock for art items in the order - MUST complete before response
+            if (Array.isArray(items) && items.length > 0) {
+                const stockUpdatePromises = items.map(async (item) => {
+                    if (item && item.id) {
+                        const quantity = parseInt(String(item.quantity)) || 1;
+                        return await decrementArtItemStock(String(item.id), quantity);
+                    }
+                    return { success: false, message: 'Invalid item structure' };
+                });
+                
+                // Wait for all stock updates to complete
+                const stockResults = await Promise.all(stockUpdatePromises);
+                
+                // Log results
+                stockResults.forEach((result, index) => {
+                    if (result.success) {
+                        console.log(`[STOCK] Item ${items[index]?.id}: Stock decremented successfully (UPI)`);
+                    } else if (result.message !== 'Item not found in art_items table') {
+                        // Only log if it's not just a non-art item
+                        console.warn(`[STOCK] Item ${items[index]?.id}: ${result.message}`);
+                    }
+                });
+            }
+
             res.json({
                 success: true,
                 message: 'Payment verified and order created',
