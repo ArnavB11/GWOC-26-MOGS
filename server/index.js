@@ -782,16 +782,12 @@ app.post('/api/franchise/faq', async (req, res) => {
 
         const { data, error } = await db.from('franchise_faq').insert({ question, answer }).select().single();
         if (error) return res.status(500).json({ error: error.message });
->>>>>>> 55d98ad27738cccbcd01fd29d25713677e0e519b
         res.json(data);
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
 });
 
-<<<<<<< HEAD
-// Server Start
-=======
 app.put('/api/franchise/faq/:id', async (req, res) => {
     try {
         const { question, answer } = req.body;
