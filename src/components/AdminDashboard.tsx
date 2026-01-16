@@ -301,7 +301,14 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onLogout }) => 
   const [selectedTags, setSelectedTags] = useState<Tag[]>([]);
   const [tagSearchQuery, setTagSearchQuery] = useState('');
   const [newSubCategoryName, setNewSubCategoryName] = useState('');
+
   const [showTagDropdown, setShowTagDropdown] = useState(false);
+  const [filterStatus, setFilterStatus] = useState<'ALL' | 'LIVE' | 'DRAFT'>('ALL');
+
+  const filteredMenuItems = useMemo(() => {
+    if (filterStatus === 'ALL') return menuItems;
+    return menuItems.filter(item => (item.status || 'LIVE') === filterStatus);
+  }, [menuItems, filterStatus]);
 
   // Modal state for Workshops
   const [workshopModalOpen, setWorkshopModalOpen] = useState(false);
@@ -449,6 +456,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onLogout }) => 
     setNewSubCategoryName('');
     setSelectedTags([]);
     setTagSearchQuery('');
+
     setSubCategories([]);
     setItemKind('beverage');
     setCoffeeDraft({
@@ -463,6 +471,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onLogout }) => 
       calories: null,
       shareable: 0,
       intensity_level: null,
+      status: 'DRAFT',
     });
     // Fetch sub-categories for first category
     if (categories[0]?.id) {
@@ -635,6 +644,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onLogout }) => 
       image: coffeeDraft.image || '/media/pic1.jpeg',
       description: coffeeDraft.description || '',
       tag_ids: selectedTags.map(t => t.id),
+      status: coffeeDraft.status || 'DRAFT',
     };
 
     try {
@@ -652,8 +662,17 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onLogout }) => 
       setSelectedTags([]);
       // No reload needed as DataContext updates the list automatically
     } catch (err: any) {
-      console.error('Error saving item:', err);
       showToast(err.message || 'Failed to save item', 'error');
+    }
+  };
+
+  const toggleCoffeeStatus = async (item: CoffeeAdminItem) => {
+    try {
+      const newStatus = item.status === 'LIVE' ? 'DRAFT' : 'LIVE';
+      await updateMenuItem(item.id, { status: newStatus });
+      showToast(`Item set to ${newStatus}`, 'success');
+    } catch (e) {
+      showToast('Failed to update status', 'error');
     }
   };
 
@@ -794,7 +813,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onLogout }) => 
   const enquiryCount = enquiries.length;
 
   return (
-    <div className="flex min-h-screen md:h-screen bg-[#F3EFE0] pt-0 md:pt-10 text-[#0a0a0a] relative" style={{ minHeight: '100vh' }}>
+    <div className="flex min-h-screen md:h-screen bg-[#F3EFE0] text-[#0a0a0a] relative" style={{ minHeight: '100vh' }}>
       {/* Mobile Hamburger Button - Only show when menu is closed */}
       {!isMobileMenuOpen && (
         <button
@@ -954,7 +973,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onLogout }) => 
                 >
                   {[
                     { id: 'franchise_enquiries', label: 'Enquiries', icon: MessageSquare },
-                    { id: 'franchise_faqs', label: 'FAQs', icon: HelpCircle },
                     { id: 'franchise_settings', label: 'Settings', icon: Settings },
                   ].map((sub) => (
                     <button
@@ -1075,11 +1093,28 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onLogout }) => 
 
         {
           activeTab === 'coffee' && (
-            <CoffeeTable
-              items={menuItems}
-              onEdit={openCoffeeModalForEdit}
-              onDelete={deleteCoffeeItem}
-            />
+            <div className="space-y-6">
+              <div className="flex gap-2">
+                {['ALL', 'LIVE', 'DRAFT'].map((tab) => (
+                  <button
+                    key={tab}
+                    onClick={() => setFilterStatus(tab as any)}
+                    className={`px-4 py-2 text-[10px] uppercase tracking-[0.2em] font-bold rounded-lg transition-colors border ${filterStatus === tab
+                      ? 'bg-black text-white border-black'
+                      : 'bg-white text-zinc-500 border-black/5 hover:border-black/20'
+                      }`}
+                  >
+                    {tab === 'ALL' ? 'All Items' : tab}
+                  </button>
+                ))}
+              </div>
+              <CoffeeTable
+                items={filteredMenuItems}
+                onEdit={openCoffeeModalForEdit}
+                onDelete={deleteCoffeeItem}
+                onToggleStatus={toggleCoffeeStatus}
+              />
+            </div>
           )
         }
 
@@ -1230,21 +1265,19 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onLogout }) => 
         }
 
         {
-          activeTab === 'franchise_faqs' && (
-            <FranchiseFaqManager
-              items={franchiseFaqs}
-              onAdd={addFaq}
-              onDelete={deleteFaq}
-            />
-          )
-        }
-
-        {
           activeTab === 'franchise_settings' && (
-            <FranchiseSettingsManager
-              contactNumber={franchiseContact}
-              onSave={saveFranchiseContact}
-            />
+            <div className="max-w-5xl space-y-24 pb-20">
+              <FranchiseSettingsManager
+                contactNumber={franchiseContact}
+                onSave={saveFranchiseContact}
+              />
+
+              <FranchiseFaqManager
+                items={franchiseFaqs}
+                onAdd={addFaq}
+                onDelete={deleteFaq}
+              />
+            </div>
           )
         }
       </main >
@@ -1295,6 +1328,33 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onLogout }) => 
                         }`}
                     >
                       Food
+                    </button>
+                  </div>
+                </div>
+
+                {/* Status Toggle */}
+                <div>
+                  <label className="block text-[12px] font-semibold text-[#333] uppercase tracking-[0.05em] mb-3">Status</label>
+                  <div className="flex p-1 bg-[#F5F5F5] rounded-[12px]">
+                    <button
+                      type="button"
+                      onClick={() => handleCoffeeDraftChange('status', 'LIVE')}
+                      className={`flex-1 h-[40px] text-[14px] font-medium rounded-[10px] transition-all border ${coffeeDraft.status === 'LIVE'
+                        ? 'bg-emerald-50 text-emerald-600 border-emerald-200 shadow-sm'
+                        : 'bg-transparent text-[#666] border-transparent hover:text-[#333]'
+                        }`}
+                    >
+                      LIVE
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleCoffeeDraftChange('status', 'DRAFT')}
+                      className={`flex-1 h-[40px] text-[14px] font-medium rounded-[10px] transition-all border ${(coffeeDraft.status || 'DRAFT') === 'DRAFT'
+                        ? 'bg-white text-zinc-600 border-black/5 shadow-sm'
+                        : 'bg-transparent text-[#666] border-transparent hover:text-[#333]'
+                        }`}
+                    >
+                      DRAFT
                     </button>
                   </div>
                 </div>
@@ -1422,20 +1482,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onLogout }) => 
                 </div>
 
 
-                {/* Divider */}
-                <div className="border-t border-[#F0F0F0]" />
 
-                {/* Image URL */}
-                <div>
-                  <label className="block text-[12px] font-semibold text-[#333] uppercase tracking-[0.05em] mb-2">Image URL</label>
-                  <input
-                    type="text"
-                    value={coffeeDraft.image || ''}
-                    onChange={e => handleCoffeeDraftChange('image', e.target.value)}
-                    placeholder="/media/pic1.jpeg"
-                    className="w-full h-[46px] px-4 text-[14px] text-[#111] placeholder-[#AAA] border border-[#DDD] rounded-[12px] outline-none focus:border-[#111] transition-colors"
-                  />
-                </div>
 
                 {/* Description */}
                 <div>
@@ -1859,7 +1906,8 @@ const CoffeeTable: React.FC<{
   items: CoffeeAdminItem[];
   onEdit: (item: CoffeeAdminItem) => void;
   onDelete: (id: string) => void;
-}> = ({ items, onEdit, onDelete }) => (
+  onToggleStatus: (item: CoffeeAdminItem) => void;
+}> = ({ items, onEdit, onDelete, onToggleStatus }) => (
   <div className="bg-white border border-black/5 rounded-xl overflow-hidden">
     <table className="w-full text-left font-sans text-sm">
       <thead className="bg-[#F9F8F4] text-[10px] uppercase tracking-[0.25em] text-zinc-500">
@@ -1867,6 +1915,7 @@ const CoffeeTable: React.FC<{
           <th className="px-6 py-3 font-semibold">Item</th>
           <th className="px-6 py-3 font-semibold">Category</th>
           <th className="px-6 py-3 font-semibold">Price (₹)</th>
+          <th className="px-6 py-3 font-semibold">Status</th>
           <th className="px-6 py-3 font-semibold">Actions</th>
         </tr>
       </thead>
@@ -1883,6 +1932,17 @@ const CoffeeTable: React.FC<{
               {item.category}
             </td>
             <td className="px-6 py-4 text-sm font-semibold">₹{item.price}</td>
+            <td className="px-6 py-4">
+              <button
+                onClick={() => onToggleStatus(item)}
+                className={`px-3 py-1 text-[9px] uppercase tracking-[0.2em] font-bold rounded-full border transition-all ${(item.status || 'LIVE') === 'LIVE'
+                  ? 'bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100'
+                  : 'bg-zinc-100 text-zinc-500 border-zinc-200 hover:bg-zinc-200'
+                  }`}
+              >
+                {item.status || 'LIVE'}
+              </button>
+            </td>
             <td className="px-6 py-4">
               <div className="flex gap-3 text-xs uppercase tracking-[0.2em]">
                 <button
@@ -1970,6 +2030,22 @@ const OrderDetailsModal: React.FC<{
                     {order.payment_method}
                   </span>
                 </div>
+                <div className="flex justify-between items-center pt-2 mt-2 border-t border-dashed border-black/10">
+                  <span className="text-zinc-500">Order Status</span>
+                  <select
+                    value={status}
+                    onChange={(e) => {
+                      const newStatus = e.target.value;
+                      setStatus(newStatus);
+                      onUpdateStatus(order.id, newStatus);
+                    }}
+                    className="px-3 py-1.5 text-xs font-bold uppercase tracking-wider bg-white border border-black/10 rounded-lg outline-none focus:border-black cursor-pointer"
+                  >
+                    {statusOptions.map(s => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
             </div>
           </div>
@@ -2011,15 +2087,7 @@ const OrderDetailsModal: React.FC<{
             </table>
           </div>
 
-          <div className="flex flex-col md:flex-row items-end md:items-center justify-end gap-6 pt-4 border-t border-black/5">
-            <button
-              onClick={() => window.print()}
-              className="flex items-center gap-2 px-5 py-3 bg-black text-white rounded-lg hover:bg-zinc-800 transition-all text-[11px] uppercase tracking-widest font-bold shadow-lg"
-            >
-              <ClipboardList className="w-4 h-4" />
-              Print Invoice
-            </button>
-          </div>
+          {/* Print Invoice button removed as requested */}
         </div>
       </motion.div>
     </div>
@@ -2371,26 +2439,33 @@ const FranchiseSettingsManager: React.FC<{
   useEffect(() => { setVal(contactNumber) }, [contactNumber]);
 
   return (
-    <div className="bg-white border border-black/5 rounded-xl p-8 max-w-xl">
-      <h3 className="text-2xl font-serif mb-6">Contact Settings</h3>
+    <section>
       <div className="mb-6">
-        <label className="block text-xs uppercase tracking-[0.2em] text-zinc-500 mb-2">Franchise Phone Number</label>
-        <input
-          type="text"
-          value={val}
-          onChange={(e) => setVal(e.target.value)}
-          className="w-full bg-zinc-50 border border-black/10 px-4 py-3 rounded outline-none focus:border-black transition-colors"
-          placeholder="+91..."
-        />
-        <p className="text-[10px] text-zinc-400 mt-2">This number will be displayed on the Franchise page.</p>
+        <h3 className="text-2xl font-serif text-black">Contact Information</h3>
+        <p className="text-sm text-zinc-500 mt-1 max-w-2xl">
+          This contact number is displayed prominently on the Franchise Opportunity page for prospective partners to reach out.
+        </p>
       </div>
-      <button
-        onClick={() => onSave(val)}
-        className="px-6 py-3 bg-black text-white text-xs uppercase tracking-[0.2em] hover:bg-zinc-800 transition-colors"
-      >
-        Save Changes
-      </button>
-    </div>
+
+      <div className="bg-white border border-black/5 rounded-xl p-8 max-w-2xl shadow-sm">
+        <label className="block text-[10px] uppercase tracking-[0.2em] text-zinc-500 mb-3 font-bold">Phone Number</label>
+        <div className="flex gap-4">
+          <input
+            type="text"
+            value={val}
+            onChange={(e) => setVal(e.target.value)}
+            className="flex-1 bg-zinc-50 border border-black/10 px-4 py-3 rounded-lg outline-none focus:border-black transition-all text-sm font-mono tracking-wide"
+            placeholder="+91..."
+          />
+          <button
+            onClick={() => onSave(val)}
+            className="px-8 py-3 bg-black text-white text-[11px] uppercase tracking-[0.2em] font-bold rounded-lg hover:bg-zinc-800 transition-all shadow-sm active:scale-95"
+          >
+            Save
+          </button>
+        </div>
+      </div>
+    </section>
   );
 };
 
@@ -2399,6 +2474,7 @@ const FranchiseFaqManager: React.FC<{
   onAdd: (q: string, a: string) => void;
   onDelete: (id: number) => void;
 }> = ({ items, onAdd, onDelete }) => {
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [q, setQ] = useState('');
   const [a, setA] = useState('');
 
@@ -2408,61 +2484,115 @@ const FranchiseFaqManager: React.FC<{
     onAdd(q, a);
     setQ('');
     setA('');
+    setIsModalOpen(false);
   };
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-      {/* List */}
-      <div className="space-y-4">
-        <h3 className="text-xl font-serif mb-4">Existing FAQs</h3>
-        {items.length === 0 && <p className="text-zinc-400 text-sm">No FAQs added yet.</p>}
-        {items.map(item => (
-          <div key={item.id} className="bg-white border border-black/5 p-6 rounded-xl relative group">
-            <button
-              onClick={() => onDelete(item.id)}
-              className="absolute top-4 right-4 text-zinc-300 hover:text-red-500 transition-colors"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
-            <h4 className="font-serif font-bold mb-2 pr-8">{item.question}</h4>
-            <p className="text-sm text-zinc-600 font-sans">{item.answer}</p>
-          </div>
-        ))}
+    <section>
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
+        <div>
+          <h3 className="text-2xl font-serif text-black">FAQs</h3>
+          <p className="text-sm text-zinc-500 mt-1">Manage common questions for prospective franchisees</p>
+        </div>
+        <button
+          onClick={() => setIsModalOpen(true)}
+          className="flex items-center gap-2 px-6 py-3 bg-black text-white rounded-lg hover:bg-zinc-800 transition-all text-[11px] uppercase tracking-[0.2em] font-bold shadow-sm"
+        >
+          <Plus className="w-3.5 h-3.5" />
+          <span>Add FAQ</span>
+        </button>
       </div>
 
-      {/* Form */}
-      <div>
-        <h3 className="text-xl font-serif mb-4">Add New FAQ</h3>
-        <div className="bg-white border border-black/5 p-8 rounded-xl">
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-[10px] uppercase tracking-[0.2em] text-zinc-500 mb-2">Question</label>
-              <input
-                className="w-full bg-zinc-50 border border-black/10 px-4 py-2 rounded outline-none focus:border-black"
-                value={q}
-                onChange={e => setQ(e.target.value)}
-                placeholder="e.g. What is the investment?"
-              />
-            </div>
-            <div>
-              <label className="block text-[10px] uppercase tracking-[0.2em] text-zinc-500 mb-2">Answer</label>
-              <textarea
-                className="w-full bg-zinc-50 border border-black/10 px-4 py-2 rounded outline-none focus:border-black min-h-[100px]"
-                value={a}
-                onChange={e => setA(e.target.value)}
-                placeholder="Enter detailed answer..."
-              />
-            </div>
-            <button
-              type="submit"
-              className="w-full py-3 bg-black text-white text-xs uppercase tracking-[0.2em] hover:bg-zinc-800 transition-colors"
-            >
-              Add FAQ
-            </button>
-          </form>
+      {items.length === 0 ? (
+        <div className="bg-zinc-50 border border-dashed border-black/10 rounded-xl p-16 text-center max-w-2xl mx-auto">
+          <HelpCircle className="w-10 h-10 text-zinc-300 mx-auto mb-4" />
+          <h4 className="text-lg font-serif mb-2">No FAQs yet</h4>
+          <p className="text-zinc-500 text-sm mb-6">Start by adding common questions to help your potential partners.</p>
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="px-6 py-2 bg-white border border-black/10 rounded-lg text-sm text-zinc-600 hover:text-black hover:border-black/30 transition-all"
+          >
+            Create first FAQ
+          </button>
         </div>
-      </div>
-    </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-4 max-w-5xl">
+          {items.map(item => (
+            <div key={item.id} className="bg-white border border-black/5 p-6 rounded-xl relative group hover:shadow-md transition-all">
+              <div className="flex items-start justify-between gap-6">
+                <div className="space-y-2 max-w-3xl">
+                  <h4 className="font-bold text-base text-black leading-relaxed">{item.question}</h4>
+                  <p className="text-sm text-zinc-600 leading-relaxed whitespace-pre-wrap">{item.answer}</p>
+                </div>
+                <button
+                  onClick={() => onDelete(item.id)}
+                  className="flex-shrink-0 text-zinc-300 hover:text-red-500 transition-colors p-2 hover:bg-red-50 rounded-lg opacity-0 group-hover:opacity-100"
+                  title="Delete FAQ"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Add FAQ Modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl p-8 animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-2xl font-serif">Add New FAQ</h3>
+              <button
+                onClick={() => setIsModalOpen(false)}
+                className="p-2 hover:bg-zinc-100 rounded-full transition-colors"
+              >
+                <X className="w-5 h-5 text-zinc-500" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div>
+                <label className="block text-[10px] uppercase tracking-[0.2em] text-zinc-500 mb-2 font-bold">Question</label>
+                <input
+                  value={q}
+                  onChange={e => setQ(e.target.value)}
+                  className="w-full bg-zinc-50 border border-black/10 px-4 py-3 rounded-lg outline-none focus:border-black transition-colors placeholder-zinc-300"
+                  placeholder="e.g. What is the initial investment?"
+                  autoFocus
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] uppercase tracking-[0.2em] text-zinc-500 mb-2 font-bold">Answer</label>
+                <textarea
+                  value={a}
+                  onChange={e => setA(e.target.value)}
+                  rows={4}
+                  className="w-full bg-zinc-50 border border-black/10 px-4 py-3 rounded-lg outline-none focus:border-black transition-colors placeholder-zinc-300 resize-none"
+                  placeholder="Provide a detailed answer..."
+                />
+              </div>
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsModalOpen(false)}
+                  className="px-6 py-3 text-[11px] uppercase tracking-widest font-bold text-zinc-500 hover:text-black transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={!q || !a}
+                  className="px-8 py-3 bg-black text-white text-[11px] uppercase tracking-widest font-bold rounded-lg hover:bg-zinc-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Save Question
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </section>
   );
 };
 

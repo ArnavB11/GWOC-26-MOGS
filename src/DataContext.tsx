@@ -35,6 +35,7 @@ export interface CoffeeAdminItem {
   tags?: { id: string; name: string }[];
   // Legacy string tags field for backward compatibility
   tags_legacy?: string;
+  status?: 'LIVE' | 'DRAFT';
 }
 
 // New interfaces for dynamic categories
