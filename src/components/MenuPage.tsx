@@ -232,6 +232,7 @@ const MenuPage: React.FC<MenuPageProps> = ({ onAddToCart }) => {
   const [activeCategoryId, setActiveCategoryId] = useState<string>('');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const toastTimeoutRef = useRef<number | null>(null);
+  const activeCategoryTimeoutRef = useRef<number | null>(null);
   const [showBrewDesk, setShowBrewDesk] = useState(false);
   const [trendingItems, setTrendingItems] = useState<TrendingItem[]>([]);
 
@@ -425,23 +426,43 @@ const MenuPage: React.FC<MenuPageProps> = ({ onAddToCart }) => {
   };
   // -----------------------------
 
-  // Set initial active category once we have data
-  // Set initial active category once we have data
-  useEffect(() => {
-    if (!activeCategoryId && menuItems.length) {
-      const firstItem = menuItems[0];
-      const categorySource = firstItem.category || firstItem.category_name;
-      if (!categorySource) return;
+  // Calculate Levenshtein distance for string similarity
+  const levenshteinDistance = (a: string, b: string): number => {
+    const matrix = [];
 
-      const firstCategory = (categorySource ?? '').trim().toUpperCase();
-      if (!firstCategory) return; // Skip if empty after trimming
-      const id = firstCategory
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/(^-|-$)/g, '');
-      setActiveCategoryId(id);
+    for (let i = 0; i <= b.length; i++) {
+      matrix[i] = [i];
     }
-  }, [activeCategoryId, menuItems]);
+
+    for (let j = 0; j <= a.length; j++) {
+      matrix[0][j] = j;
+    }
+
+    for (let i = 1; i <= b.length; i++) {
+      for (let j = 1; j <= a.length; j++) {
+        if (b.charAt(i - 1) === a.charAt(j - 1)) {
+          matrix[i][j] = matrix[i - 1][j - 1];
+        } else {
+          matrix[i][j] = Math.min(
+            matrix[i - 1][j - 1] + 1,
+            Math.min(matrix[i][j - 1] + 1, matrix[i - 1][j] + 1)
+          );
+        }
+      }
+    }
+
+    return matrix[b.length][a.length];
+  };
+
+  const getSimilarity = (s1: string, s2: string): number => {
+    const longer = s1.length > s2.length ? s1 : s2;
+    const shorter = s1.length > s2.length ? s2 : s1;
+    const longerLength = longer.length;
+    if (longerLength === 0) {
+      return 1.0;
+    }
+    return (longerLength - levenshteinDistance(longer, shorter)) / parseFloat(longerLength.toString());
+  };
 
   const handleCategoryClick = (id: string) => {
     setActiveCategoryId(id);
@@ -450,6 +471,14 @@ const MenuPage: React.FC<MenuPageProps> = ({ onAddToCart }) => {
     if (el) {
       el.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
+
+    // Clear highlight after 1 second
+    if (activeCategoryTimeoutRef.current) {
+      window.clearTimeout(activeCategoryTimeoutRef.current);
+    }
+    activeCategoryTimeoutRef.current = window.setTimeout(() => {
+      setActiveCategoryId('');
+    }, 1000);
   };
 
   const handleAddToCart = (category: MenuCategory, item: MenuItem) => {
@@ -500,13 +529,18 @@ const MenuPage: React.FC<MenuPageProps> = ({ onAddToCart }) => {
     const textWords = textLower.split(/[\s\-_]+/).filter(w => w.length > 0);
     const queryWords = queryLower.split(/[\s\-_]+/).filter(w => w.length > 0);
 
-    // Check if any query word matches any text word
+    // Check if ALL query words match at least one text word (AND logic)
     for (const queryWord of queryWords) {
       if (queryWord.length < 3) continue; // Skip very short words
 
+      let wordMatched = false;
+
       for (const textWord of textWords) {
         // Exact match in word
-        if (textWord.includes(queryWord)) return true;
+        if (textWord.includes(queryWord)) {
+          wordMatched = true;
+          break;
+        }
 
         // Only do fuzzy matching if words are similar length (within 2 chars)
         if (Math.abs(textWord.length - queryWord.length) > 2) continue;
@@ -531,9 +565,11 @@ const MenuPage: React.FC<MenuPageProps> = ({ onAddToCart }) => {
         for (const [from, to] of commonSwaps) {
           const swappedQuery = normalizedQueryWord.replace(new RegExp(from, 'g'), to);
           if (normalizedTextWord.includes(swappedQuery) || swappedQuery.includes(normalizedTextWord)) {
-            return true;
+            wordMatched = true;
+            break;
           }
         }
+        if (wordMatched) break;
 
         // For longer words (5+ chars), allow 1 character difference if they're very similar
         if (normalizedQueryWord.length >= 5 && normalizedTextWord.length >= 5) {
@@ -553,28 +589,29 @@ const MenuPage: React.FC<MenuPageProps> = ({ onAddToCart }) => {
           }
           // Only match if at least 80% of query characters match (very strict)
           const matchRatio = matchingChars / normalizedQueryWord.length;
-          if (matchRatio >= 0.8) return true;
+          if (matchRatio >= 0.8) {
+            wordMatched = true;
+            break;
+          }
         }
       }
+
+      if (!wordMatched) return false;
     }
 
-    return false;
+    return true;
   };
 
-  const filteredCategories = useMemo(() => {
-    const query = (search || '').trim().toLowerCase();
-
-    // Build categories from live menu items (deduped by trimmed, uppercased category)
+  // ALL CATEGORIES (for Sidebar) - independent of search
+  const allCategories = useMemo(() => {
     const categoryMap = new Map<string, MenuCategory>();
 
     menuItems.forEach(item => {
-      // Skip items without minimal required fields (price/name/id)
       if (!item.name || item.price == null || !item.id) return;
 
-      // Use safe defaults to ensure trim() is always called on a string
       const rawCategory = item.category || item.category_legacy || item.category_name || '';
       const categoryStr = rawCategory.trim();
-      if (!categoryStr) return; // Skip if category is empty after trimming
+      if (!categoryStr) return;
 
       const canonicalCategory = categoryStr.toUpperCase();
       const id = canonicalCategory
@@ -582,7 +619,6 @@ const MenuPage: React.FC<MenuPageProps> = ({ onAddToCart }) => {
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/(^-|-$)/g, '');
 
-      // Attempt to derive group from sub_category_name first, fallback to regex on category string
       const groupSource = item.sub_category_name || rawCategory;
       const group = (groupSource.split('(')[0] ?? '').trim();
 
@@ -595,119 +631,128 @@ const MenuPage: React.FC<MenuPageProps> = ({ onAddToCart }) => {
         });
       }
 
-      // If no search query, include all items
-      if (!query) {
-        categoryMap.get(canonicalCategory)!.items.push({
-          id: item.id,
-          name: item.name,
-          price: item.price,
-        });
-        return;
-      }
+      categoryMap.get(canonicalCategory)!.items.push({
+        id: item.id,
+        name: item.name,
+        price: item.price,
+      });
+    });
 
-      // Search in multiple fields:
-      // 1. Item name
+    return Array.from(categoryMap.values());
+  }, [menuItems]);
+
+  const [didYouMean, setDidYouMean] = useState<string | null>(null);
+
+  const filteredCategories = useMemo(() => {
+    const query = (search || '').trim().toLowerCase();
+
+    // Reset suggestion
+    // We can't set state directly in useMemo, so we'll just compute it and return it alongside, 
+    // or use a separate effect. For now, let's keep logic pure here.
+    // Actually, setting state in useMemo is bad. Let's do suggestion check after filtering.
+
+    // If no search query, return all
+    if (!query) {
+      return allCategories;
+    }
+
+    const categories = allCategories.map(cat => ({ ...cat, items: [] as MenuItem[] })); // Deep clone structure with empty items
+
+    // We also need to map items back from allCategories structure or re-filter menuItems.
+    // Re-filtering menuItems is safer for search.
+
+    const matchedCategoriesMap = new Map<string, MenuCategory>();
+    // Pre-fill map from allCategories to keep order and metadata
+    allCategories.forEach(c => matchedCategoriesMap.set(c.label, { ...c, items: [] }));
+
+    let hasExactMatches = false;
+
+    menuItems.forEach(item => {
+      // duplicates logic from above but that's fine for safety
+      if (!item.name || item.price == null || !item.id) return;
+      const rawCategory = item.category || item.category_legacy || item.category_name || '';
+      const categoryStr = rawCategory.trim();
+      if (!categoryStr) return;
+      const canonicalCategory = categoryStr.toUpperCase();
+
+      // Search
       const nameStr = (item.name ?? '').toLowerCase();
-      const nameMatches = fuzzyMatch(nameStr, query);
+      const groupSource = item.sub_category_name || rawCategory;
+      const group = (groupSource.split('(')[0] ?? '').trim();
 
-      // 2. Category name (so "coffee" finds items even if it's just a category heading)
-      const categoryMatches = fuzzyMatch(categoryStr.toLowerCase(), query);
+      // Improved Search Logic:
+      // 1. Check strict substring/fuzzy match
+      const combinedText = `${nameStr} ${categoryStr.toLowerCase()} ${group.toLowerCase()}`;
 
-      // 3. Group name (e.g., "Robusta Specialty", "Blend")
-      const groupMatches = fuzzyMatch(group.toLowerCase(), query);
-
-      // Include item if any field matches
-      if (nameMatches || categoryMatches || groupMatches) {
-        categoryMap.get(canonicalCategory)!.items.push({
-          id: item.id,
-          name: item.name,
-          price: item.price,
-        });
+      if (fuzzyMatch(combinedText, query)) {
+        hasExactMatches = true;
+        if (matchedCategoriesMap.has(canonicalCategory)) {
+          matchedCategoriesMap.get(canonicalCategory)!.items.push({
+            id: item.id,
+            name: item.name,
+            price: item.price
+          });
+        }
       }
     });
 
-    let categories = Array.from(categoryMap.values());
+    // If we have matches, great. If not, check "Did you mean?"
+    // We need to look for a potential match in all items if result is empty OR if matches are weak?
+    // Requirement: "while searching... if there is under 60% similarity... did you mean"
+    // This implies we check similarity against available items.
 
+    // Let's filter out empty categories
+    const results = Array.from(matchedCategoriesMap.values()).filter(c => c.items.length > 0);
+
+    // Sort logic
     if (sortBy === 'price-asc' || sortBy === 'price-desc') {
-      categories = categories.map(category => {
+      const sorted = results.map(category => {
         const sortedItems = [...category.items].sort((a, b) =>
           sortBy === 'price-asc' ? a.price - b.price : b.price - a.price
         );
         return { ...category, items: sortedItems };
       });
+      return sorted;
     }
 
-    return categories.filter(category => category.items.length > 0);
-  }, [menuItems, search, sortBy]);
+    return results;
 
-  // Scroll spy: update active category based on scroll position
+  }, [allCategories, menuItems, search, sortBy]);
+
+  // Effect for "Did You Mean"
   useEffect(() => {
-    const handleScroll = () => {
-      if (!filteredCategories.length) return;
+    const query = search.trim().toLowerCase();
 
-      const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
-      const thresholdTop = 0;
-      const thresholdBottom = 300; // px from top where we consider a section "active"
+    // If we have exact results, or search is empty, don't suggested
+    if (!query || filteredCategories.length > 0) {
+      setDidYouMean(null);
+      return;
+    }
 
-      let bestId: string | null = null;
-      let bestDistance = Infinity;
+    // If no results, find closest match
+    let bestMatch = '';
+    let highestSimilarity = 0;
 
-      // Pass 1: sections whose top is between 0 and 300px
-      filteredCategories.forEach(cat => {
-        const el = document.getElementById(cat.id);
-        if (!el) return;
-        const rect = el.getBoundingClientRect();
+    menuItems.forEach(item => {
+      const name = (item.name || '').toLowerCase();
+      // Calculate similarity
+      const sim = getSimilarity(name, query);
 
-        // Consider sections that are at least partially in view
-        if (rect.bottom <= 0 || rect.top >= viewportHeight) return;
-
-        // Focus on sections whose top lies in [0, 300px]
-        if (rect.top >= thresholdTop && rect.top <= thresholdBottom) {
-          const distance = Math.abs(rect.top - thresholdTop);
-          if (distance < bestDistance) {
-            bestDistance = distance;
-            bestId = cat.id;
-          }
-        }
-      });
-
-      // If nothing matched the [0,300] band (e.g. near very top or mid scroll),
-      // fall back to the section whose top is closest to the viewport top.
-      if (!bestId) {
-        filteredCategories.forEach(cat => {
-          const el = document.getElementById(cat.id);
-          if (!el) return;
-          const rect = el.getBoundingClientRect();
-          if (rect.bottom <= 0 || rect.top >= viewportHeight) return;
-          const distance = Math.abs(rect.top - thresholdTop);
-          if (distance < bestDistance) {
-            bestDistance = distance;
-            bestId = cat.id;
-          }
-        });
+      if (sim > highestSimilarity) {
+        highestSimilarity = sim;
+        bestMatch = item.name;
       }
+    });
 
-      // If user is at (or very near) the bottom, force last category as active
-      const scrollTop = window.scrollY || document.documentElement.scrollTop;
-      const docHeight = document.documentElement.scrollHeight;
-      const bottom = scrollTop + viewportHeight;
-      if (docHeight - bottom < 40 && filteredCategories.length > 0) {
-        bestId = filteredCategories[filteredCategories.length - 1].id;
-      }
+    // User requirement: "at least 40% of them right". 
+    // We use >= 0.4 threshold.
+    if (highestSimilarity >= 0.4 && highestSimilarity < 1.0) {
+      setDidYouMean(bestMatch);
+    } else {
+      setDidYouMean(null);
+    }
 
-      if (bestId && bestId !== activeCategoryId) {
-        setActiveCategoryId(bestId);
-      }
-    };
-
-    // Initial run
-    handleScroll();
-
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => {
-      window.removeEventListener('scroll', handleScroll);
-    };
-  }, [filteredCategories, activeCategoryId]);
+  }, [search, filteredCategories, menuItems]);
 
   return (
     <div className="bg-[#F3EFE0] text-[#0a0a0a] pt-24 md:pt-32 pb-40 px-6 md:px-10 min-h-screen">
@@ -725,7 +770,7 @@ const MenuPage: React.FC<MenuPageProps> = ({ onAddToCart }) => {
             </div>
 
             <nav className="space-y-2 text-xs md:text-sm font-sans uppercase tracking-[0.25em]">
-              {filteredCategories.map(cat => (
+              {allCategories.map(cat => (
                 <button
                   key={cat.id}
                   onClick={() => handleCategoryClick(cat.id)}
@@ -745,7 +790,7 @@ const MenuPage: React.FC<MenuPageProps> = ({ onAddToCart }) => {
         <div className="md:hidden sticky top-16 z-30 bg-[#F3EFE0]/95 backdrop-blur-sm py-4 -mx-6 px-6 border-b border-black/5 mb-4">
           <p className="text-[9px] uppercase tracking-[0.4em] text-zinc-500 mb-2 font-sans">Menu Categories</p>
           <div className="flex overflow-x-auto gap-3 pb-2 no-scrollbar snap-x">
-            {filteredCategories.map(cat => (
+            {allCategories.map(cat => (
               <button
                 key={cat.id}
                 onClick={() => handleCategoryClick(cat.id)}
@@ -801,8 +846,17 @@ const MenuPage: React.FC<MenuPageProps> = ({ onAddToCart }) => {
 
           {/* Sections list */}
           <div className="space-y-10">
+            {/* Did You Mean Suggestion */}
+            {search && didYouMean && (
+              <div className="mb-2">
+                <p className="text-sm font-sans text-zinc-600">
+                  Did you mean <button onClick={() => setSearch(didYouMean)} className="font-semibold underline text-black hover:text-zinc-800">{didYouMean}</button>?
+                </p>
+              </div>
+            )}
+
             {/* Recommended Section (Personalized) */}
-            {recommendedItems.length > 0 && (
+            {(!search && recommendedItems.length > 0) && (
               <section id="recommended-for-you" className="scroll-mt-28 mb-10">
                 <div className="mb-4">
                   <p className="text-[10px] uppercase tracking-[0.4em] text-black font-sans mb-1">

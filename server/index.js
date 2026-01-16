@@ -239,20 +239,20 @@ app.get('/api/workshops', async (req, res) => {
 app.put('/api/workshops/:id', async (req, res) => {
     try {
         const workshopId = req.params.id;
-        
+
         // Get current workshop
         const { data: workshop, error: fetchError } = await db
             .from('workshops')
             .select('remaining')
             .eq('id', workshopId)
             .single();
-        
+
         if (fetchError) return res.status(404).json({ error: 'Workshop not found' });
         if (!workshop) return res.status(404).json({ error: 'Workshop not found' });
-        
+
         // Decrement remaining by 1 (but not below 0)
         const newRemaining = Math.max(0, (workshop.remaining || 0) - 1);
-        
+
         // Update workshop
         const { data: updated, error: updateError } = await db
             .from('workshops')
@@ -260,7 +260,7 @@ app.put('/api/workshops/:id', async (req, res) => {
             .eq('id', workshopId)
             .select()
             .single();
-        
+
         if (updateError) return res.status(500).json({ error: updateError.message });
         res.json(updated);
     } catch (error) {
@@ -392,7 +392,8 @@ app.post('/api/orders', async (req, res) => {
             });
         }
 
-        res.status(200).json({ ...req.body, date: orderDate, status: orderStatus });
+        res.status(200).json({ ...req.body, date: orderDate, status: 'placed' });
+
     } catch (error) {
         console.error('Unexpected error in order creation:', error);
         return res.status(500).json({
