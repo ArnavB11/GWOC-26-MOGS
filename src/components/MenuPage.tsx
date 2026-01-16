@@ -609,6 +609,10 @@ const MenuPage: React.FC<MenuPageProps> = ({ onAddToCart }) => {
     menuItems.forEach(item => {
       if (!item.name || item.price == null || !item.id) return;
 
+      // Skip DRAFT items
+      if (item.status === 'DRAFT') return;
+
+      // Use safe defaults to ensure trim() is always called on a string
       const rawCategory = item.category || item.category_legacy || item.category_name || '';
       const categoryStr = rawCategory.trim();
       if (!categoryStr) return;

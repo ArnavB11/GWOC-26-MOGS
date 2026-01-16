@@ -102,9 +102,9 @@ const ArtworkCard: React.FC<ArtworkCardProps> = ({ art, index, onAddToCart, isPr
               transform: 'rotateY(180deg)',
             }}
           >
-            <div 
+            <div
               className="w-full h-full flex flex-col justify-between relative overflow-hidden"
-              style={{ 
+              style={{
                 padding: '2.25rem 2rem',
               }}
             >
@@ -119,7 +119,7 @@ const ArtworkCard: React.FC<ArtworkCardProps> = ({ art, index, onAddToCart, isPr
                   transform: 'scale(1.1)',
                 }}
               />
-              
+
               {/* Dark overlay for text readability */}
               <div
                 className="absolute inset-0 w-full h-full"
@@ -127,7 +127,7 @@ const ArtworkCard: React.FC<ArtworkCardProps> = ({ art, index, onAddToCart, isPr
                   backgroundColor: 'rgba(34, 34, 34, 0.75)',
                 }}
               />
-              
+
               {/* Content layer */}
               <div className="flex-1 flex flex-col justify-start relative z-10" style={{ maxWidth: '100%' }}>
                 {/* Title - Large Serif, Italic */}
@@ -136,7 +136,7 @@ const ArtworkCard: React.FC<ArtworkCardProps> = ({ art, index, onAddToCart, isPr
                 </h2>
 
                 {/* Artist Name - Uppercase, Roman, Spaced */}
-                <p 
+                <p
                   className="text-sm font-sans mb-6 font-normal tracking-[0.15em]"
                   style={{ color: '#f2f2f2' }}
                 >
@@ -144,7 +144,7 @@ const ArtworkCard: React.FC<ArtworkCardProps> = ({ art, index, onAddToCart, isPr
                 </p>
 
                 {/* Price */}
-                <p 
+                <p
                   className="text-base font-sans font-medium mb-8"
                   style={{ color: '#f2f2f2' }}
                 >
@@ -154,13 +154,13 @@ const ArtworkCard: React.FC<ArtworkCardProps> = ({ art, index, onAddToCart, isPr
                 {/* Artist Bio - Concise */}
                 {artistBio && (
                   <div className="mb-8">
-                    <h4 
+                    <h4
                       className="text-sm font-sans mb-3.5 font-normal tracking-[0.12em]"
                       style={{ color: '#f2f2f2' }}
                     >
                       ABOUT THE ARTIST
                     </h4>
-                    <p 
+                    <p
                       className="text-base font-serif italic leading-relaxed font-normal"
                       style={{ color: '#f2f2f2', lineHeight: '1.75' }}
                     >
@@ -172,13 +172,13 @@ const ArtworkCard: React.FC<ArtworkCardProps> = ({ art, index, onAddToCart, isPr
                 {/* Description/Story - Concise */}
                 {description && (
                   <div>
-                    <h4 
+                    <h4
                       className="text-sm font-sans mb-3.5 font-normal tracking-[0.12em]"
                       style={{ color: '#f2f2f2' }}
                     >
                       THE STORY
                     </h4>
-                    <p 
+                    <p
                       className="text-base font-serif italic leading-relaxed font-normal"
                       style={{ color: '#f2f2f2', lineHeight: '1.75' }}
                     >
@@ -189,7 +189,7 @@ const ArtworkCard: React.FC<ArtworkCardProps> = ({ art, index, onAddToCart, isPr
 
                 {/* Fallback if no content */}
                 {!artistBio && !description && (
-                  <p 
+                  <p
                     className="text-base font-serif italic leading-relaxed"
                     style={{ color: '#f2f2f2', opacity: 0.7, lineHeight: '1.75' }}
                   >
@@ -207,16 +207,21 @@ const ArtworkCard: React.FC<ArtworkCardProps> = ({ art, index, onAddToCart, isPr
         <div>
           <h3 className="text-3xl font-serif italic mb-2">{art.title}</h3>
           <p className="text-[10px] font-sans text-zinc-400 uppercase tracking-widest">{artistName}</p>
-          {isAvailable && (
-            <p className="text-[9px] font-sans text-emerald-600 mt-2 uppercase tracking-wide">
-              {art.stock} piece{art.stock > 1 ? 's' : ''} remaining
-            </p>
-          )}
+          <p className={`text-[9px] font-sans mt-2 uppercase tracking-wide ${isAvailable ? 'text-emerald-600' : 'text-[#D0021B]'}`}>
+            {isAvailable ? `${art.stock} piece${art.stock > 1 ? 's' : ''} remaining` : '0 piece remaining'}
+          </p>
         </div>
         <span className="text-sm font-sans font-bold">₹{art.price.toLocaleString()}</span>
       </div>
 
-      {isAvailable && onAddToCart && (
+      {!isAvailable ? (
+        <button
+          disabled
+          className="w-full py-4 border border-[#D0021B] bg-[#D0021B] text-white text-[10px] uppercase tracking-[0.3em] font-bold flex items-center justify-center cursor-not-allowed"
+        >
+          <span>SOLD OUT</span>
+        </button>
+      ) : onAddToCart && (
         <button
           onClick={handleAddToCartClick}
           disabled={isProcessing || art.stock <= 0}

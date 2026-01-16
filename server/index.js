@@ -199,8 +199,23 @@ app.get('/api/menu', async (req, res) => {
 
 app.post('/api/menu', async (req, res) => {
     try {
-        const { id, name, category, price, image, description } = req.body;
+        const { id, name, category, price, image, description, status } = req.body;
         const { data, error } = await db.from('menu_items').insert(req.body).select().single();
+        if (error) throw error;
+        res.json(data);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/menu/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const updates = { ...req.body };
+        delete updates.id;
+        delete updates.created_at;
+        delete updates.categories; // Remove joined data if present
+        delete updates.sub_categories;
+
+        const { data, error } = await db.from('menu_items').update(updates).eq('id', id).select().single();
         if (error) throw error;
         res.json(data);
     } catch (e) { res.status(500).json({ error: e.message }); }
@@ -753,6 +768,84 @@ app.post('/api/recommendations/context', async (req, res) => {
         console.error('Recommendation Error:', error);
         res.status(500).json({ error: error.message });
     }
+});
+
+// -----------------------------------------------------
+// DYNAMIC CATEGORIES, SUB-CATEGORIES, TAGS
+// -----------------------------------------------------
+
+// CATEGORIES
+app.get('/api/categories', async (req, res) => {
+    const { data, error } = await db.from('categories').select('*').order('name');
+    if (error) return res.status(500).json({ error: error.message });
+    res.json(data);
+});
+
+app.post('/api/categories', async (req, res) => {
+    try {
+        const { name } = req.body;
+        if (!name) return res.status(400).json({ error: 'Name required' });
+        const { data, error } = await db.from('categories').insert({ name }).select().single();
+        if (error) throw error;
+        res.status(201).json(data);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// SUB-CATEGORIES
+app.get('/api/sub-categories', async (req, res) => {
+    const { category_id } = req.query;
+    let query = db.from('sub_categories').select('*').order('name');
+    if (category_id) query = query.eq('category_id', category_id);
+
+    const { data, error } = await query;
+    if (error) return res.status(500).json({ error: error.message });
+    res.json(data);
+});
+
+app.post('/api/sub-categories', async (req, res) => {
+    try {
+        const { category_id, name } = req.body;
+        if (!category_id || !name) return res.status(400).json({ error: 'Category ID and Name required' });
+        const { data, error } = await db.from('sub_categories').insert({ category_id, name }).select().single();
+        if (error) throw error;
+        res.status(201).json(data);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// TAGS
+app.get('/api/tags', async (req, res) => {
+    const { data, error } = await db.from('tags').select('*').order('name');
+    if (error) return res.status(500).json({ error: error.message });
+    res.json(data);
+});
+
+app.post('/api/tags', async (req, res) => {
+    try {
+        const { name } = req.body;
+        if (!name) return res.status(400).json({ error: 'Name required' });
+
+        // Upsert to avoid dupes if name unique constraint exists
+        const { data, error } = await db.from('tags').upsert({ name }, { onConflict: 'name' }).select().single();
+        if (error) throw error;
+        res.status(201).json(data);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// MENU ITEM TAGS
+app.get('/api/menu/:id/tags', async (req, res) => {
+    try {
+        const { id } = req.params;
+        // Join menu_item_tags -> tags
+        const { data, error } = await db
+            .from('menu_item_tags')
+            .select(`tag_id, tags (*)`)
+            .eq('menu_item_id', id);
+
+        if (error) throw error;
+        // Flatten structure
+        const tags = data.map(row => row.tags);
+        res.json(tags);
+    } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 // -----------------------------------------------------
