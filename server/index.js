@@ -236,24 +236,42 @@ app.get('/api/workshops', async (req, res) => {
     res.json(data || []);
 });
 
+app.post('/api/workshops', async (req, res) => {
+    try {
+        const { data, error } = await db.from('workshops').insert(req.body).select().single();
+        if (error) throw error;
+        res.json(data);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 app.put('/api/workshops/:id', async (req, res) => {
     try {
         const workshopId = req.params.id;
 
-        // Get current workshop
+        // If body has content, treat as full/partial update
+        if (req.body && Object.keys(req.body).length > 0) {
+            const { data, error } = await db
+                .from('workshops')
+                .update(req.body)
+                .eq('id', workshopId)
+                .select()
+                .single();
+
+            if (error) throw error;
+            return res.json(data);
+        }
+
+        // Logic for reservation (decrement) if body is empty
         const { data: workshop, error: fetchError } = await db
             .from('workshops')
             .select('remaining')
             .eq('id', workshopId)
             .single();
 
-        if (fetchError) return res.status(404).json({ error: 'Workshop not found' });
-        if (!workshop) return res.status(404).json({ error: 'Workshop not found' });
+        if (fetchError || !workshop) return res.status(404).json({ error: 'Workshop not found' });
 
-        // Decrement remaining by 1 (but not below 0)
         const newRemaining = Math.max(0, (workshop.remaining || 0) - 1);
 
-        // Update workshop
         const { data: updated, error: updateError } = await db
             .from('workshops')
             .update({ remaining: newRemaining })
@@ -266,6 +284,14 @@ app.put('/api/workshops/:id', async (req, res) => {
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
+});
+
+app.delete('/api/workshops/:id', async (req, res) => {
+    try {
+        const { error } = await db.from('workshops').delete().eq('id', req.params.id);
+        if (error) throw error;
+        res.json({ success: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.get('/api/orders', async (req, res) => {

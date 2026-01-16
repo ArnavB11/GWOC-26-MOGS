@@ -462,14 +462,47 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // --- WORKSHOP ACTIONS ---
   const addWorkshop = async (item: WorkshopAdminItem) => {
-    // TODO: Implement API if needed, currently read-only in UI mostly
-    setWorkshops(prev => [...prev, item]);
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/workshops`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(item)
+      });
+      if (res.ok) {
+        const newItem = await res.json();
+        setWorkshops(prev => [...prev, newItem]);
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'Failed to add workshop');
+      }
+    } catch (err) {
+      console.error(err);
+      throw err;
+    }
   };
   const updateWorkshop = async (id: string, updates: Partial<WorkshopAdminItem>) => {
-    setWorkshops(prev => prev.map(w => (w.id === id ? { ...w, ...updates } : w)));
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/workshops/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates)
+      });
+      if (res.ok) {
+        setWorkshops(prev => prev.map(w => (w.id === id ? { ...w, ...updates } : w)));
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'Failed to update workshop');
+      }
+    } catch (err) {
+      console.error(err);
+      throw err;
+    }
   };
   const deleteWorkshop = async (id: string) => {
-    setWorkshops(prev => prev.filter(w => w.id !== id));
+    try {
+      await fetch(`${API_BASE_URL}/api/workshops/${id}`, { method: 'DELETE' });
+      setWorkshops(prev => prev.filter(w => w.id !== id));
+    } catch (err) { console.error(err); }
   };
 
 

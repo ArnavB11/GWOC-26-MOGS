@@ -126,6 +126,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onLogout }) => 
     addMenuItem,
     updateMenuItem,
     deleteMenuItem,
+    updateWorkshop,
+    deleteWorkshop,
   } = useDataContext();
 
   // Create a ref or effect to make updateArtItem available to saveArtItem if scoping is an issue, 
@@ -300,6 +302,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onLogout }) => 
   const [tagSearchQuery, setTagSearchQuery] = useState('');
   const [newSubCategoryName, setNewSubCategoryName] = useState('');
   const [showTagDropdown, setShowTagDropdown] = useState(false);
+
+  // Modal state for Workshops
+  const [workshopModalOpen, setWorkshopModalOpen] = useState(false);
+  const [editingWorkshop, setEditingWorkshop] = useState<WorkshopAdminItem | null>(null);
+  const [workshopDraft, setWorkshopDraft] = useState<Partial<WorkshopAdminItem>>({});
 
   // Fetch categories and tags on mount
   useEffect(() => {
@@ -685,18 +692,79 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onLogout }) => 
     setDeleteModalOpen(true);
   };
 
-  // toggleArtStatus and addWorkshop are provided by DataContext
-  const createWorkshop = () => {
-    const newItem: WorkshopAdminItem = {
-      id: `w${Date.now()}`,
-      title: 'New Workshop',
-      datetime: 'TBD',
+  const openWorkshopModalForNew = () => {
+    setEditingWorkshop(null);
+    setWorkshopDraft({
+      title: '',
+      datetime: '',
       seats: 12,
-      booked: 0,
+      remaining: 12,
       price: 0,
-    };
-    addWorkshop(newItem);
+      description: '',
+      image_url: '/media/pic1.jpeg'
+    });
+    setWorkshopModalOpen(true);
   };
+
+  const openWorkshopModalForEdit = (item: WorkshopAdminItem) => {
+    setEditingWorkshop(item);
+    setWorkshopDraft(item);
+    setWorkshopModalOpen(true);
+  };
+
+  const closeWorkshopModal = () => {
+    setWorkshopModalOpen(false);
+  };
+
+  const handleWorkshopDraftChange = (field: keyof WorkshopAdminItem, value: any) => {
+    setWorkshopDraft(prev => ({ ...prev, [field]: value }));
+  };
+
+  const saveWorkshop = async () => {
+    if (!workshopDraft.title || !workshopDraft.datetime) {
+      showToast('Please fill in required fields', 'error');
+      return;
+    }
+
+    let imageToUse = workshopDraft.image_url || '/media/pic1.jpeg';
+    if (selectedFile) {
+      const uploadedUrl = await uploadImage(selectedFile);
+      if (uploadedUrl) imageToUse = uploadedUrl;
+    }
+
+    const workshopData: WorkshopAdminItem = {
+      id: editingWorkshop ? editingWorkshop.id : `w${Date.now()}`,
+      title: workshopDraft.title,
+      datetime: workshopDraft.datetime,
+      seats: Number(workshopDraft.seats),
+      remaining: Number(workshopDraft.remaining), // Ideally kept in sync or reset
+      price: Number(workshopDraft.price),
+      description: workshopDraft.description,
+      image_url: imageToUse
+    };
+
+    try {
+      if (editingWorkshop) {
+        await updateWorkshop(editingWorkshop.id, workshopData);
+        showToast('Workshop updated', 'success');
+      } else {
+        await addWorkshop(workshopData);
+        showToast('Workshop created', 'success');
+      }
+      setWorkshopModalOpen(false);
+      setSelectedFile(null);
+    } catch (e) {
+      showToast('Failed to save workshop', 'error');
+    }
+  };
+
+  const deleteWorkshopItem = (id: string) => {
+    deleteWorkshop(id);
+    showToast('Workshop deleted', 'success');
+  };
+
+  // Replaces the old createWorkshop dummy function
+  const createWorkshop = openWorkshopModalForNew;
 
   const markEnquiryRead = (id: string) => {
     setEnquiries(prev => prev.map(e => (e.id === id ? { ...e, read: true } : e)));
@@ -1105,7 +1173,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onLogout }) => 
           )
         }
 
-        {activeTab === 'workshops' && <WorkshopTable items={workshops} />}
+        {activeTab === 'workshops' && <WorkshopTable items={workshops} onEdit={openWorkshopModalForEdit} onDelete={deleteWorkshopItem} />}
 
         {
           activeTab === 'manage_categories' && (
@@ -1600,6 +1668,121 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onLogout }) => 
         )
       }
 
+      {
+        workshopModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="w-full max-w-xl bg-[#F9F8F4] border border-black/10 rounded-xl shadow-2xl p-8 max-h-[90vh] overflow-y-auto"
+            >
+              <div className="flex items-center justify-between mb-8">
+                <h2 className="text-3xl font-serif italic text-black">{editingWorkshop ? 'Edit Workshop' : 'Create Workshop'}</h2>
+                <button onClick={closeWorkshopModal} className="text-xs uppercase tracking-[0.25em] text-zinc-400 hover:text-black transition-colors">Close</button>
+              </div>
+
+              <div className="space-y-6 font-sans text-sm">
+                <div>
+                  <label className="block text-[10px] uppercase tracking-[0.25em] text-zinc-500 mb-2">Title</label>
+                  <input
+                    value={workshopDraft.title || ''}
+                    onChange={e => handleWorkshopDraftChange('title', e.target.value)}
+                    className="w-full bg-transparent border-b border-black/10 py-3 text-lg outline-none focus:border-black transition-colors placeholder-zinc-300"
+                    placeholder="e.g. Latte Art Basics"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-8">
+                  <div>
+                    <label className="block text-[10px] uppercase tracking-[0.25em] text-zinc-500 mb-2">Date & Time</label>
+                    <input
+                      type="text"
+                      value={workshopDraft.datetime || ''}
+                      onChange={e => handleWorkshopDraftChange('datetime', e.target.value)}
+                      className="w-full bg-transparent border-b border-black/10 py-2 outline-none focus:border-black"
+                      placeholder="e.g. Oct 24, 10:00 AM"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] uppercase tracking-[0.25em] text-zinc-500 mb-2">Price (₹)</label>
+                    <input
+                      type="number"
+                      value={workshopDraft.price ?? ''}
+                      onChange={e => handleWorkshopDraftChange('price', Number(e.target.value))}
+                      className="w-full bg-transparent border-b border-black/10 py-2 outline-none focus:border-black font-semibold"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-8">
+                  <div>
+                    <label className="block text-[10px] uppercase tracking-[0.25em] text-zinc-500 mb-2">Total Seats</label>
+                    <input
+                      type="number"
+                      value={workshopDraft.seats ?? ''}
+                      onChange={e => handleWorkshopDraftChange('seats', Number(e.target.value))}
+                      className="w-full bg-transparent border-b border-black/10 py-2 outline-none focus:border-black"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] uppercase tracking-[0.25em] text-zinc-500 mb-2">Remaining Seats</label>
+                    <input
+                      type="number"
+                      value={workshopDraft.remaining ?? ''}
+                      onChange={e => handleWorkshopDraftChange('remaining', Number(e.target.value))}
+                      className="w-full bg-transparent border-b border-black/10 py-2 outline-none focus:border-black"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] uppercase tracking-[0.25em] text-zinc-500 mb-2">Description</label>
+                  <textarea
+                    value={workshopDraft.description || ''}
+                    onChange={e => handleWorkshopDraftChange('description', e.target.value)}
+                    className="w-full bg-white/50 border border-black/10 rounded-lg p-3 outline-none focus:border-black resize-none"
+                    rows={3}
+                    placeholder="Describe the event..."
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] uppercase tracking-[0.25em] text-zinc-500 mb-3">Cover Image</label>
+                  <div className="flex items-start gap-4">
+                    <div className="w-24 h-24 bg-zinc-100 rounded-lg overflow-hidden border border-black/5 flex-shrink-0">
+                      <img
+                        src={selectedFile ? URL.createObjectURL(selectedFile) : workshopDraft.image_url || '/media/pic1.jpeg'}
+                        alt="Preview"
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={e => {
+                          if (e.target.files && e.target.files[0]) {
+                            setSelectedFile(e.target.files[0]);
+                          }
+                        }}
+                        className="block w-full text-xs text-zinc-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-[10px] file:uppercase file:tracking-[0.1em] file:bg-black file:text-white hover:file:bg-zinc-800 cursor-pointer"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-4 pt-8 text-[11px] uppercase tracking-[0.25em]">
+                  <button onClick={closeWorkshopModal} className="px-6 py-3 text-zinc-400 hover:text-black transition-colors">Cancel</button>
+                  <button onClick={saveWorkshop} className="px-8 py-3 bg-black text-white hover:bg-zinc-800 transition-all shadow-lg hover:shadow-xl">
+                    {editingWorkshop ? 'Save Changes' : 'Create Event'}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )
+      }
+
       {/* Delete confirmation modal */}
       {
         deleteModalOpen && (
@@ -1969,7 +2152,11 @@ const ArtTable: React.FC<{
 );
 
 // Workshop table
-const WorkshopTable: React.FC<{ items: WorkshopAdminItem[] }> = ({ items }) => (
+const WorkshopTable: React.FC<{
+  items: WorkshopAdminItem[];
+  onEdit: (item: WorkshopAdminItem) => void;
+  onDelete: (id: string) => void;
+}> = ({ items, onEdit, onDelete }) => (
   <div className="bg-white border border-black/5 rounded-xl overflow-hidden">
     <table className="w-full text-left font-sans text-sm">
       <thead className="bg-[#F9F8F4] text-[10px] uppercase tracking-[0.25em] text-zinc-500">
@@ -1978,7 +2165,7 @@ const WorkshopTable: React.FC<{ items: WorkshopAdminItem[] }> = ({ items }) => (
           <th className="px-6 py-3 font-semibold">Date / Time</th>
           <th className="px-6 py-3 font-semibold">Seats</th>
           <th className="px-6 py-3 font-semibold">Price (₹)</th>
-          <th className="px-6 py-3 font-semibold">Registrations</th>
+          <th className="px-6 py-3 font-semibold">Actions</th>
         </tr>
       </thead>
       <tbody>
@@ -1990,13 +2177,24 @@ const WorkshopTable: React.FC<{ items: WorkshopAdminItem[] }> = ({ items }) => (
             <td className="px-6 py-4 font-medium text-[15px]">{item.title}</td>
             <td className="px-6 py-4 text-sm text-zinc-700">{item.datetime}</td>
             <td className="px-6 py-4 text-sm text-zinc-700">
-              {item.booked}/{item.seats}
+              {item.seats - item.remaining}/{item.seats}
             </td>
             <td className="px-6 py-4 text-sm font-semibold">₹{item.price}</td>
             <td className="px-6 py-4">
-              <button className="px-4 py-2 text-[10px] uppercase tracking-[0.25em] border border-black/20 rounded-full hover:bg-[#F9F8F4]">
-                View Registrations
-              </button>
+              <div className="flex gap-3 text-xs uppercase tracking-[0.2em]">
+                <button
+                  onClick={() => onEdit(item)}
+                  className="flex items-center gap-1 text-zinc-600 hover:text-black"
+                >
+                  <Edit3 className="w-4 h-4" /> Edit
+                </button>
+                <button
+                  onClick={() => onDelete(item.id)}
+                  className="flex items-center gap-1 text-red-500 hover:text-red-600"
+                >
+                  <Trash2 className="w-4 h-4" /> Delete
+                </button>
+              </div>
             </td>
           </tr>
         ))}
