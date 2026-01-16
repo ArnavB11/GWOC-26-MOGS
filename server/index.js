@@ -227,23 +227,35 @@ app.get('/api/art', async (req, res) => {
     res.json(data || []);
 });
 
-// Decrease Stock
-app.post('/api/art/:id/decrement-stock', async (req, res) => {
+app.post('/api/art', async (req, res) => {
     try {
-        const artId = req.params.id;
-        const { data: artItem } = await db.from('art_items').select('stock').eq('id', artId).single();
-        if (!artItem) return res.status(404).json({ error: 'Art item not found' });
-
-        const newStock = (artItem.stock || 0) - 1;
-        if (newStock < 0) return res.status(400).json({ error: 'Out of stock' });
-
-        const { data, error } = await db.from('art_items').update({ stock: newStock, status: newStock > 0 ? 'Available' : 'Sold' }).eq('id', artId).select().single();
+        const { data, error } = await db.from('art_items').insert(req.body).select().single();
         if (error) throw error;
         res.json(data);
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
+    } catch (e) { res.status(500).json({ error: e.message }); }
 });
+
+app.put('/api/art/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const updates = { ...req.body };
+        delete updates.id;
+        delete updates.created_at;
+
+        const { data, error } = await db.from('art_items').update(updates).eq('id', id).select().single();
+        if (error) throw error;
+        res.json(data);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/art/:id', async (req, res) => {
+    try {
+        const { error } = await db.from('art_items').delete().eq('id', req.params.id);
+        if (error) throw error;
+        res.json({ success: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 
 app.get('/api/workshops', async (req, res) => {
     const { data, error } = await db.from('workshops').select('*');

@@ -350,6 +350,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onLogout }) => 
     setArtDraft({
       title: '',
       artist: '',
+      artist_name: '',
+      artist_bio: '',
+      description: '',
       price: 0,
       status: 'Available',
       image: '/media/pic1.jpeg',
@@ -416,11 +419,15 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onLogout }) => 
         // For updates, we pass everything that changed
         const updates: any = {
           title: artDraft.title,
+          artist_name: artDraft.artist_name || '',
+          artist_bio: artDraft.artist_bio || '',
+          description: artDraft.description || '',
           price: Number(artDraft.price),
           image: imageToUse,
           stock: stockVal,
           status: statusVal
         };
+        console.log('Updating art item:', editingArt.id, updates);
         await updateArtItem(editingArt.id, updates);
         showToast('Art item updated successfully', 'success');
       } else {
@@ -428,18 +435,24 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onLogout }) => 
           id: `a${Date.now()}`,
           title: artDraft.title,
           artist: '', // Artist removed from UI, defaulting to empty
+          artist_name: artDraft.artist_name || '',
+          artist_bio: artDraft.artist_bio || '',
+          description: artDraft.description || '',
           price: Number(artDraft.price),
           status: statusVal,
           image: imageToUse,
           stock: stockVal,
         };
+        console.log('Creating new art item:', newArt);
         await addArtItem(newArt);
         showToast('Art item added successfully', 'success');
       }
       setArtModalOpen(false);
       setSelectedFile(null); // Reset file
-    } catch (e) {
-      showToast('Action failed', 'error');
+    } catch (e: any) {
+      console.error('Error saving art item:', e);
+      const errorMessage = e?.message || 'Action failed';
+      showToast(errorMessage, 'error');
     }
   };
 
@@ -1634,7 +1647,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onLogout }) => 
                 <button onClick={closeArtModal} className="text-xs uppercase tracking-[0.25em] text-zinc-400 hover:text-black transition-colors">Close</button>
               </div>
 
-              <div className="space-y-6 font-sans text-sm">
+              <div className="space-y-6 font-sans text-sm max-h-[70vh] overflow-y-auto pr-2">
                 <div>
                   <label className="block text-[10px] uppercase tracking-[0.25em] text-zinc-500 mb-2">Title</label>
                   <input
@@ -1645,7 +1658,37 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onLogout }) => 
                   />
                 </div>
 
-                {/* Artist Removed */}
+                <div>
+                  <label className="block text-[10px] uppercase tracking-[0.25em] text-zinc-500 mb-2">Artist Name</label>
+                  <input
+                    value={artDraft.artist_name || ''}
+                    onChange={e => handleArtDraftChange('artist_name', e.target.value)}
+                    className="w-full bg-transparent border-b border-black/10 py-3 text-lg outline-none focus:border-black transition-colors placeholder-zinc-300"
+                    placeholder="e.g. Mithesh Reddy"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] uppercase tracking-[0.25em] text-zinc-500 mb-2">Artist Bio</label>
+                  <textarea
+                    value={artDraft.artist_bio || ''}
+                    onChange={e => handleArtDraftChange('artist_bio', e.target.value)}
+                    className="w-full bg-white/50 border border-black/10 rounded-lg p-3 outline-none focus:border-black resize-none placeholder-zinc-300"
+                    rows={2}
+                    placeholder="Brief biography of the artist..."
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] uppercase tracking-[0.25em] text-zinc-500 mb-2">Description</label>
+                  <textarea
+                    value={artDraft.description || ''}
+                    onChange={e => handleArtDraftChange('description', e.target.value)}
+                    className="w-full bg-white/50 border border-black/10 rounded-lg p-3 outline-none focus:border-black resize-none placeholder-zinc-300"
+                    rows={3}
+                    placeholder="Describe the artwork..."
+                  />
+                </div>
 
                 <div className="grid grid-cols-2 gap-8">
                   <div>
@@ -1702,13 +1745,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onLogout }) => 
                     </div>
                   </div>
                 </div>
+              </div>
 
-                <div className="flex justify-end gap-4 pt-8 text-[11px] uppercase tracking-[0.25em]">
-                  <button onClick={closeArtModal} className="px-6 py-3 text-zinc-400 hover:text-black transition-colors">Cancel</button>
-                  <button onClick={saveArtItem} className="px-8 py-3 bg-black text-white hover:bg-zinc-800 transition-all shadow-lg hover:shadow-xl">
-                    {editingArt ? 'Save Changes' : 'Upload Piece'}
-                  </button>
-                </div>
+              <div className="flex justify-end gap-4 pt-6 border-t border-black/5 mt-6">
+                <button onClick={closeArtModal} className="px-6 py-3 text-[11px] uppercase tracking-[0.25em] text-zinc-400 hover:text-black transition-colors">Cancel</button>
+                <button onClick={saveArtItem} className="px-8 py-3 text-[11px] uppercase tracking-[0.25em] bg-black text-white hover:bg-zinc-800 transition-all shadow-lg hover:shadow-xl">
+                  {editingArt ? 'Save Changes' : 'Upload Piece'}
+                </button>
               </div>
             </motion.div>
           </div>
@@ -2159,7 +2202,6 @@ const ArtTable: React.FC<{
           <th className="px-6 py-3 font-semibold">Artwork</th>
           <th className="px-6 py-3 font-semibold">Price (₹)</th>
           <th className="px-6 py-3 font-semibold">Stock</th>
-          <th className="px-6 py-3 font-semibold">Status</th>
           <th className="px-6 py-3 font-semibold">Action</th>
         </tr>
       </thead>
@@ -2185,17 +2227,6 @@ const ArtTable: React.FC<{
             {/* Artist Column Removed */}
             <td className="px-6 py-4 text-sm font-semibold">₹{item.price}</td>
             <td className="px-6 py-4 text-sm text-zinc-700">{item.stock ?? 1}</td>
-            <td className="px-6 py-4">
-              <button
-                onClick={() => onToggleStatus(item.id)}
-                className={`px-3 py-1 text-[10px] uppercase tracking-[0.2em] rounded-full border ${item.status === 'Available'
-                  ? 'border-emerald-300 bg-emerald-50 text-emerald-700'
-                  : 'border-zinc-300 bg-zinc-100 text-zinc-600'
-                  }`}
-              >
-                {item.status}
-              </button>
-            </td>
             <td className="px-6 py-4">
               <div className="flex gap-3 text-xs uppercase tracking-[0.2em]">
                 <button
