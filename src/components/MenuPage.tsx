@@ -304,27 +304,6 @@ const MenuPage: React.FC<MenuPageProps> = ({ onAddToCart }) => {
     }
   }, []);
 
-  // --- HELPER: VEGETARIAN LOGIC ---
-  const isVegetarian = (item: { name?: string; tags?: string | any[]; category?: string }): boolean => {
-    // Default to veg unless identified otherwise
-    const text = ((item.name || '') + ' ' + (item.category || '')).toLowerCase();
-
-    // Explicit non-veg keywords
-    const nonVegKeywords = ['chicken', 'lamb', 'fish', 'prawn', 'egg', 'meat', 'beef', 'pork'];
-    if (nonVegKeywords.some(k => text.includes(k))) return false;
-
-    // Explicit veg keywords (optional, for confirmation if needed, but we default to true if no meat found)
-    // const vegKeywords = ['veg', 'paneer', 'cheese', 'mushroom', 'potato', 'corn', 'spinach'];
-
-    // Check tags if available
-    if (Array.isArray(item.tags)) {
-      if (item.tags.some(t => t.name.toLowerCase() === 'non-veg')) return false;
-    } else if (typeof item.tags === 'string') {
-      if (item.tags.toLowerCase().includes('non-veg')) return false;
-    }
-
-    return true;
-  };
 
   // Helper for Veg Icon
   const VegIcon = () => (
@@ -338,6 +317,18 @@ const MenuPage: React.FC<MenuPageProps> = ({ onAddToCart }) => {
       <div className="w-1.5 h-1.5 rounded-full bg-red-600"></div>
     </div>
   );
+
+  const JainIcon = () => (
+    <div className="inline-flex items-center justify-center border border-yellow-500 p-[1px] w-3 h-3 mr-1.5 align-middle">
+      <div className="w-1.5 h-1.5 rounded-full bg-yellow-500"></div>
+    </div>
+  );
+
+  const DietIcon = ({ pref }: { pref?: string }) => {
+    if (pref === 'jain') return <JainIcon />;
+    if (pref === 'non veg' || pref === 'non-veg') return <NonVegIcon />;
+    return <VegIcon />;
+  };
 
   // --- RECOMMENDATION ENGINE ---
   const [recommendedItems, setRecommendedItems] = useState<CoffeeItem[]>([]);
@@ -493,7 +484,8 @@ const MenuPage: React.FC<MenuPageProps> = ({ onAddToCart }) => {
       intensity: 4, // Default or derived
       image: item.image || '/media/menu-placeholder.jpg',
       price: item.price,
-      description: (item.description || item.name).replace(/_/g, ' ')
+      description: (item.description || item.name).replace(/_/g, ' '),
+      diet_pref: item.diet_pref
     };
   };
   // -----------------------------
@@ -992,7 +984,6 @@ const MenuPage: React.FC<MenuPageProps> = ({ onAddToCart }) => {
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-16 gap-y-10">
                   {recommendedItems.map(item => {
-                    const isVeg = isVegetarian(item);
                     return (
                       <div
                         key={`rec-${item.id}`}
@@ -1030,7 +1021,7 @@ const MenuPage: React.FC<MenuPageProps> = ({ onAddToCart }) => {
                         {/* Bottom Row: Icon + Description */}
                         <div className="flex items-start text-sm text-zinc-500 font-sans font-light leading-relaxed">
                           <span className="inline-flex shrink-0 translate-y-[3px] mr-2">
-                            {isVeg ? <VegIcon /> : <NonVegIcon />}
+                            <DietIcon pref={item.diet_pref} />
                           </span>
                           <p>
                             {item.notes} • Based on your taste
@@ -1073,9 +1064,9 @@ const MenuPage: React.FC<MenuPageProps> = ({ onAddToCart }) => {
                       image: item.image || '/media/menu-placeholder.jpg',
                       price: item.price,
                       description: item.description || item.category || item.name,
+                      diet_pref: item.diet_pref,
                     };
 
-                    const isVeg = isVegetarian(item);
 
                     return (
                       <div
@@ -1114,7 +1105,7 @@ const MenuPage: React.FC<MenuPageProps> = ({ onAddToCart }) => {
                         {/* Bottom Row: Icon + Description */}
                         <div className="flex items-start text-sm text-zinc-500 font-sans font-light leading-relaxed">
                           <span className="inline-flex shrink-0 translate-y-[3px] mr-2">
-                            {isVeg ? <VegIcon /> : <NonVegIcon />}
+                            <DietIcon pref={item.diet_pref} />
                           </span>
                           <p>
                             {item.description || item.category || 'Popular choice'}
@@ -1150,7 +1141,6 @@ const MenuPage: React.FC<MenuPageProps> = ({ onAddToCart }) => {
                           {subCategory.items.map(item => {
                             const fullItem = menuItems.find(m => m.id === item.id) || item as any;
                             const description = fullItem.description || fullItem.category || '';
-                            const isVeg = isVegetarian(fullItem);
 
                             return (
                               <div
@@ -1180,7 +1170,7 @@ const MenuPage: React.FC<MenuPageProps> = ({ onAddToCart }) => {
                                 {/* Bottom Row: Icon + Description */}
                                 <div className="flex items-start text-sm text-zinc-500 font-sans font-light leading-relaxed">
                                   <span className="inline-flex shrink-0 translate-y-[3px] mr-2">
-                                    {isVeg ? <VegIcon /> : <NonVegIcon />}
+                                    <DietIcon pref={fullItem.diet_pref} />
                                   </span>
                                   <p>
                                     {description}
@@ -1198,7 +1188,6 @@ const MenuPage: React.FC<MenuPageProps> = ({ onAddToCart }) => {
                       {category.items.map(item => {
                         const fullItem = menuItems.find(m => m.id === item.id) || item as any;
                         const description = fullItem.description || fullItem.category || '';
-                        const isVeg = isVegetarian(fullItem);
 
                         return (
                           <div
@@ -1225,7 +1214,7 @@ const MenuPage: React.FC<MenuPageProps> = ({ onAddToCart }) => {
                             </div>
                             <div className="flex items-start text-sm text-zinc-500 font-sans font-light leading-relaxed">
                               <span className="inline-flex shrink-0 translate-y-[3px] mr-2">
-                                {isVeg ? <VegIcon /> : <NonVegIcon />}
+                                <DietIcon pref={fullItem.diet_pref} />
                               </span>
                               <p>{description}</p>
                             </div>

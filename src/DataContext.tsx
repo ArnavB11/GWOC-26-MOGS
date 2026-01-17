@@ -36,6 +36,7 @@ export interface CoffeeAdminItem {
   // Legacy string tags field for backward compatibility
   tags_legacy?: string;
   status?: 'LIVE' | 'DRAFT';
+  diet_pref?: 'veg' | 'non-veg' | 'jain' | null;
 }
 
 // New interfaces for dynamic categories
