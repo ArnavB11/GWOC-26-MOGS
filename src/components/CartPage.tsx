@@ -30,7 +30,7 @@ const CartPage: React.FC<CartPageProps> = ({
   onPaymentFailure,
   artItems = [],
 }) => {
-  const { placeOrder, refreshArtItems } = useDataContext();
+  const { placeOrder, refreshArtItems, orderSettings } = useDataContext();
 
   // EmailJS configuration (must be VITE_ prefixed in .env)
   const EMAILJS_SERVICE_ID = import.meta.env.VITE_EMAILJS_SERVICE_ID as string;
@@ -77,6 +77,9 @@ const CartPage: React.FC<CartPageProps> = ({
   const [paymentMethod, setPaymentMethod] = useState<'counter' | 'upi'>('counter');
   const [orderType, setOrderType] = useState<'grab-and-go' | 'order-from-store' | null>(null);
 
+  const { checkStoreStatus } = useDataContext(); // Destructure checkStoreStatus
+  const storeStatus = checkStoreStatus ? checkStoreStatus() : { isOpen: true, reason: 'loading' }; // Handle missing function gracefully if context outdated
+
   // Razorpay configuration
   const RAZORPAY_KEY_ID = import.meta.env.VITE_RAZORPAY_KEY_ID as string;
 
@@ -109,6 +112,19 @@ const CartPage: React.FC<CartPageProps> = ({
     e.preventDefault();
     if (cart.length === 0) return;
 
+    // Validate global order settings
+    const hasArt = cart.some(c => artItems.some(a => a.id === c.id));
+    const hasMenu = cart.some(c => !artItems.some(a => a.id === c.id));
+
+    if (hasArt && !orderSettings.art_orders_enabled) {
+      setError('Art orders are currently not being accepted.');
+      return;
+    }
+    if (hasMenu && !orderSettings.menu_orders_enabled) {
+      setError('Menu orders are currently not being accepted.');
+      return;
+    }
+
     const name = (customer.name ?? '').trim();
     const phoneDigits = (customer.phone ?? '').replace(/\D/g, '');
     const email = (customer.email ?? '').trim().toLowerCase();
@@ -137,15 +153,12 @@ const CartPage: React.FC<CartPageProps> = ({
         return;
       }
 
-      // Validate time range (09:30 to 23:00)
-      const [hours, minutes] = pickupTime.split(':').map(Number);
-      const timeInMinutes = hours * 60 + minutes;
-      const startTime = 9 * 60 + 30; // 09:30
-      const endTime = 23 * 60;       // 23:00
-
-      if (timeInMinutes < startTime || timeInMinutes > endTime) {
-        setError('Pickup is only available between 09:30 AM and 11:00 PM.');
-        return;
+      // Validate pickup time against store hours
+      if (orderSettings.opening_time && orderSettings.closing_time) {
+        if (pickupTime < orderSettings.opening_time || pickupTime > orderSettings.closing_time) {
+          setError(`Pickup time must be between ${orderSettings.opening_time} and ${orderSettings.closing_time}`);
+          return;
+        }
       }
     }
 

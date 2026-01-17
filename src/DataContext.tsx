@@ -105,6 +105,16 @@ export interface Order {
   status?: string; // e.g. 'placed', 'completed'
 }
 
+export interface OrderSettings {
+  id: number;
+  art_orders_enabled: boolean;
+  menu_orders_enabled: boolean;
+  contact_info_1?: string;
+  contact_info_2?: string;
+  opening_time?: string;
+  closing_time?: string;
+}
+
 interface StoredData {
   menuItems: CoffeeAdminItem[];
   artItems: ArtAdminItem[];
@@ -278,6 +288,7 @@ interface DataContextValue {
   artItems: ArtAdminItem[];
   workshops: WorkshopAdminItem[];
   orders: Order[];
+  orderSettings: OrderSettings;
   addMenuItem: (item: CoffeeAdminItem) => void;
   updateMenuItem: (id: string, updates: Partial<CoffeeAdminItem>) => void;
   deleteMenuItem: (id: string) => void;
@@ -291,6 +302,8 @@ interface DataContextValue {
   placeOrder: (customer: OrderCustomer, items: CartItem[], total: number, pickupTime: string, paymentMethod?: string) => Promise<Order>;
   refreshArtItems: () => Promise<void>;
   setWorkshops: React.Dispatch<React.SetStateAction<WorkshopAdminItem[]>>;
+  updateOrderSettings: (settings: Partial<OrderSettings>) => Promise<void>;
+  checkStoreStatus: () => { isOpen: boolean; reason: string; openingTime?: string; closingTime?: string };
 }
 
 const DataContext = createContext<DataContextValue | undefined>(undefined);
@@ -300,16 +313,22 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [artItems, setArtItems] = useState<ArtAdminItem[]>([]);
   const [workshops, setWorkshops] = useState<WorkshopAdminItem[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [orderSettings, setOrderSettings] = useState<OrderSettings>({
+    id: 1,
+    art_orders_enabled: true,
+    menu_orders_enabled: true
+  });
 
   // FETCH DATA ON MOUNT
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [menuRes, artRes, workshopRes, orderRes] = await Promise.all([
+        const [menuRes, artRes, workshopRes, orderRes, settingsRes] = await Promise.all([
           fetch(`${API_BASE_URL}/api/menu`),
           fetch(`${API_BASE_URL}/api/art`),
           fetch(`${API_BASE_URL}/api/workshops`),
-          fetch(`${API_BASE_URL}/api/orders`)
+          fetch(`${API_BASE_URL}/api/orders`),
+          fetch(`${API_BASE_URL}/api/settings`)
         ]);
 
         if (menuRes.ok) {
@@ -336,6 +355,10 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         if (orderRes.ok) {
           const orderData = await orderRes.json();
           setOrders(Array.isArray(orderData) ? orderData : []);
+        }
+        if (settingsRes.ok) {
+          const settingsData = await settingsRes.json();
+          if (settingsData) setOrderSettings(settingsData);
         }
       } catch (err) {
         console.error("Failed to fetch data:", err);
@@ -603,7 +626,52 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  // Reverted deleteOrder
+  // --- SETTINGS ACTIONS ---
+  const updateOrderSettings = async (updates: Partial<OrderSettings>) => {
+    try {
+      const newSettings = { ...orderSettings, ...updates };
+      const res = await fetch(`${API_BASE_URL}/api/settings`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newSettings)
+      });
+
+      if (res.ok) {
+        const saved = await res.json();
+        console.log('[DataContext] Settings saved successfully:', saved);
+        setOrderSettings(saved);
+      } else {
+        throw new Error('Failed to update settings');
+      }
+    } catch (err) {
+      console.error(err);
+      throw err;
+    }
+  };
+
+  // --- STORE STATUS LOGIC ---
+  const checkStoreStatus = () => {
+    if (!orderSettings) return { isOpen: false, reason: 'loading' };
+
+    // Get current time in HH:MM format
+    const now = new Date();
+    const currentHours = now.getHours().toString().padStart(2, '0');
+    const currentMinutes = now.getMinutes().toString().padStart(2, '0');
+    const currentTime = `${currentHours}:${currentMinutes}`;
+
+    const openingTime = orderSettings.opening_time || '10:00';
+    const closingTime = orderSettings.closing_time || '22:00';
+
+    const isWithinHours = currentTime >= openingTime && currentTime <= closingTime;
+
+    return {
+      isOpen: isWithinHours,
+      reason: isWithinHours ? 'time' : 'time',
+      openingTime,
+      closingTime
+    };
+  };
+
   return (
     <DataContext.Provider
       value={{
@@ -624,7 +692,10 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         deleteWorkshop,
         placeOrder,
         refreshArtItems,
-        setWorkshops
+        setWorkshops,
+        orderSettings,
+        updateOrderSettings,
+        checkStoreStatus
       }}
     >
       {children}

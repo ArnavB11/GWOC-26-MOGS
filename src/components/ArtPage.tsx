@@ -17,7 +17,7 @@ interface ArtPageProps {
 }
 
 const ArtPage: React.FC<ArtPageProps> = ({ onAddToCart, cart, artItems }) => {
-  const { refreshArtItems } = useDataContext();
+  const { refreshArtItems, orderSettings } = useDataContext();
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const toastTimeoutRef = useRef<number | null>(null);
   const [processingIds, setProcessingIds] = useState<Set<string>>(new Set());
@@ -31,6 +31,14 @@ const ArtPage: React.FC<ArtPageProps> = ({ onAddToCart, cart, artItems }) => {
   }, []);
 
   const handleAddToCart = async (art: ArtAdminItem) => {
+    // Check if ordering is enabled
+    if (!orderSettings.art_orders_enabled) {
+      setToastMessage('Ordering is currently paused.');
+      if (toastTimeoutRef.current) window.clearTimeout(toastTimeoutRef.current);
+      toastTimeoutRef.current = window.setTimeout(() => setToastMessage(null), 2000);
+      return;
+    }
+
     // Treat Art as a CoffeeItem for the cart (shared structure)
     // Note: In a real app, we might distinguish types more clearly
     if (!art.id || !art.title || art.price == null) return; // Skip invalid items
@@ -114,6 +122,13 @@ const ArtPage: React.FC<ArtPageProps> = ({ onAddToCart, cart, artItems }) => {
   return (
     <div className="pt-24 md:pt-32 pb-40 px-6 md:px-8 bg-[#F3EFE0]">
       <div className="max-w-7xl mx-auto">
+        {!orderSettings.art_orders_enabled && (
+          <div className="mb-8 p-4 bg-red-50 border border-red-200 text-red-800 flex items-center justify-center gap-2 rounded-sm">
+            <div className="w-2 h-2 rounded-full bg-red-600 animate-pulse" />
+            <span className="text-xs font-bold uppercase tracking-widest">Currently not accepting art orders</span>
+          </div>
+        )}
+
         <header className="mb-20 md:mb-32 flex flex-col md:flex-row justify-between items-end gap-6 md:gap-10">
           <div>
             <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-[10px] md:text-[13px] uppercase tracking-[0.4em] md:tracking-[0.5em] text-black mb-4 md:mb-6">The Micro Gallery</motion.p>

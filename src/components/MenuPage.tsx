@@ -254,7 +254,7 @@ interface MenuPageProps {
 }
 
 const MenuPage: React.FC<MenuPageProps> = ({ onAddToCart }) => {
-  const { menuItems } = useDataContext(); // Removed valid addToCart check since it comes from props now
+  const { menuItems, orderSettings } = useDataContext();
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState<'default' | 'price-asc' | 'price-desc'>('default');
   const [activeCategoryId, setActiveCategoryId] = useState<string>('');
@@ -264,6 +264,14 @@ const MenuPage: React.FC<MenuPageProps> = ({ onAddToCart }) => {
   const [showBrewDesk, setShowBrewDesk] = useState(false);
 
   const handleAddToCart = (item: CoffeeItem) => {
+    // Check if ordering is enabled
+    if (orderSettings && !orderSettings.menu_orders_enabled) {
+      setToastMessage('Ordering is currently paused.');
+      if (toastTimeoutRef.current) window.clearTimeout(toastTimeoutRef.current);
+      toastTimeoutRef.current = window.setTimeout(() => setToastMessage(null), 2000);
+      return;
+    }
+
     onAddToCart(item);
     // Show toast
     setToastMessage(`${item.name} added to cart`);
@@ -558,6 +566,7 @@ const MenuPage: React.FC<MenuPageProps> = ({ onAddToCart }) => {
       }
     }, 100);
   };
+
 
 
 
@@ -1027,6 +1036,7 @@ const MenuPage: React.FC<MenuPageProps> = ({ onAddToCart }) => {
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-16 gap-y-10">
                   {recommendedItems.map(item => {
+                    const isVeg = item.diet_pref === 'veg' || item.diet_pref === 'jain';
                     return (
                       <div
                         key={`rec-${item.id}`}
@@ -1111,6 +1121,8 @@ const MenuPage: React.FC<MenuPageProps> = ({ onAddToCart }) => {
                       diet_pref: item.diet_pref,
                     };
 
+                    const isVeg = item.diet_pref === 'veg' || item.diet_pref === 'jain';
+
 
                     return (
                       <div
@@ -1186,6 +1198,7 @@ const MenuPage: React.FC<MenuPageProps> = ({ onAddToCart }) => {
                           {subCategory.items.map(item => {
                             const fullItem = menuItems.find(m => m.id === item.id) || item as any;
                             const description = fullItem.description || fullItem.category || '';
+                            const isVeg = fullItem.diet_pref === 'veg' || fullItem.diet_pref === 'jain';
 
                             const cartItem: CoffeeItem = {
                               id: fullItem.id,
@@ -1244,6 +1257,7 @@ const MenuPage: React.FC<MenuPageProps> = ({ onAddToCart }) => {
                       {category.items.map(item => {
                         const fullItem = menuItems.find(m => m.id === item.id) || item as any;
                         const description = fullItem.description || fullItem.category || '';
+                        const isVeg = fullItem.diet_pref === 'veg' || fullItem.diet_pref === 'jain';
 
                         const cartItem: CoffeeItem = {
                           id: fullItem.id,
