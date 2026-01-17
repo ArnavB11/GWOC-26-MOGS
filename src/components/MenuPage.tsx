@@ -63,6 +63,7 @@ const MENU_CATEGORIES: MenuCategory[] = [
   {
     id: 'robusta-cold-milk',
     label: 'Robusta Specialty (Cold - Milk Based)',
+    subCategories: [],
     group: 'Robusta Specialty',
     items: [
       { id: 'robusta-cold-milk-iced-latte', name: 'Iced Latte', price: 220 },
@@ -81,6 +82,7 @@ const MENU_CATEGORIES: MenuCategory[] = [
     id: 'robusta-hot-non-milk',
     label: 'Robusta Specialty (Hot - Non Milk)',
     group: 'Robusta Specialty',
+    subCategories: [],
     items: [
       { id: 'robusta-hot-non-milk-hot-americano', name: 'Hot Americano', price: 150 },
       { id: 'robusta-hot-non-milk-hot-espresso', name: 'Hot Espresso', price: 130 },
@@ -90,6 +92,7 @@ const MENU_CATEGORIES: MenuCategory[] = [
     id: 'robusta-hot-milk',
     label: 'Robusta Specialty (Hot - Milk Based)',
     group: 'Robusta Specialty',
+    subCategories: [],
     items: [
       { id: 'robusta-hot-milk-latte', name: 'Hot Latte', price: 190 },
       { id: 'robusta-hot-milk-flat-white', name: 'Hot Flat White', price: 180 },
@@ -101,6 +104,7 @@ const MENU_CATEGORIES: MenuCategory[] = [
     id: 'blend-cold-non-milk',
     label: 'Blend (Cold - Non Milk)',
     group: 'Blend',
+    subCategories: [],
     items: [
       { id: 'blend-cold-non-milk-iced-americano', name: 'Iced Americano', price: 150 },
       { id: 'blend-cold-non-milk-iced-espresso', name: 'Iced Espresso', price: 120 },
@@ -121,6 +125,7 @@ const MENU_CATEGORIES: MenuCategory[] = [
     id: 'blend-cold-milk',
     label: 'Blend (Cold - Milk Based)',
     group: 'Blend',
+    subCategories: [],
     items: [
       { id: 'blend-cold-milk-iced-latte', name: 'Iced Latte', price: 210 },
       { id: 'blend-cold-milk-affogato', name: 'Affogato', price: 240 },
@@ -135,6 +140,7 @@ const MENU_CATEGORIES: MenuCategory[] = [
     id: 'blend-hot-non-milk',
     label: 'Blend (Hot - Non Milk)',
     group: 'Blend',
+    subCategories: [],
     items: [
       { id: 'blend-hot-non-milk-hot-americano', name: 'Hot Americano', price: 140 },
       { id: 'blend-hot-non-milk-hot-espresso', name: 'Hot Espresso', price: 120 },
@@ -144,6 +150,7 @@ const MENU_CATEGORIES: MenuCategory[] = [
     id: 'blend-hot-milk',
     label: 'Blend (Hot - Milk Based)',
     group: 'Blend',
+    subCategories: [],
     items: [
       { id: 'blend-hot-milk-latte', name: 'Hot Latte', price: 180 },
       { id: 'blend-hot-milk-flat-white', name: 'Hot Flat White', price: 170 },
@@ -155,6 +162,7 @@ const MENU_CATEGORIES: MenuCategory[] = [
     id: 'manual-brew',
     label: 'Manual Brew (Peaberry Special)',
     group: 'Manual Brew',
+    subCategories: [],
     items: [
       { id: 'manual-brew-classic-cold-brew', name: 'Classic Cold Brew', price: 220 },
       {
@@ -180,6 +188,7 @@ const MENU_CATEGORIES: MenuCategory[] = [
     id: 'shakes',
     label: 'Shakes',
     group: 'Shakes',
+    subCategories: [],
     items: [
       { id: 'shake-chocolate', name: 'Chocolate', price: 220 },
       { id: 'shake-biscoff', name: 'Biscoff', price: 250 },
@@ -190,6 +199,7 @@ const MENU_CATEGORIES: MenuCategory[] = [
     id: 'tea-cold',
     label: 'Tea (Cold)',
     group: 'Tea',
+    subCategories: [],
     items: [
       { id: 'tea-lemon-ice', name: 'Lemon Ice Tea', price: 210 },
       { id: 'tea-peach-ice', name: 'Peach Ice Tea', price: 210 },
@@ -201,6 +211,7 @@ const MENU_CATEGORIES: MenuCategory[] = [
     id: 'food-bagels',
     label: 'Food & Bagels',
     group: 'Food & Bagels',
+    subCategories: [],
     items: [
       { id: 'food-fries', name: 'Fries', price: 150 },
       { id: 'food-wedges', name: 'Potato Wedges', price: 170 },
@@ -476,13 +487,13 @@ const MenuPage: React.FC<MenuPageProps> = ({ onAddToCart }) => {
     const group = item.sub_category_name || (item.category ? item.category.split('(')[0].trim() : (item.category_name || 'Specialty'));
     return {
       id: item.id,
-      name: item.name,
+      name: item.name.replace(/_/g, ' '),
       notes: group,
       caffeine: item.caffeine || 'Medium',
       intensity: 4, // Default or derived
       image: item.image || '/media/menu-placeholder.jpg',
       price: item.price,
-      description: item.description || item.name
+      description: (item.description || item.name).replace(/_/g, ' ')
     };
   };
   // -----------------------------
@@ -526,16 +537,18 @@ const MenuPage: React.FC<MenuPageProps> = ({ onAddToCart }) => {
   };
 
   const handleCategoryClick = (id: string) => {
+    setSearch('');
     setActiveCategoryId(id);
-    const el = document.getElementById(id);
-    /* 
-       With tab layout, scrolling might not be needed if we render only one, 
-       but if we scroll to top of list it's fine. 
-       Actually with Tabs, we are likely replacing the content.
-       So scroll to top of container? 
-       Let's keep scroll but remove timeout.
-    */
-    /* window.scrollTo({ top: 0, behavior: 'smooth' }); // Optional */
+
+    // Smooth scroll to the section after a short delay to ensure DOM update
+    setTimeout(() => {
+      const element = document.getElementById(id);
+      if (element) {
+        const yOffset = -180; // Offset for sticky navigation/header
+        const y = element.getBoundingClientRect().top + window.pageYOffset + yOffset;
+        window.scrollTo({ top: y, behavior: 'smooth' });
+      }
+    }, 100);
   };
 
   const handleAddToCart = (category: MenuCategory, item: MenuItem) => {
@@ -561,102 +574,51 @@ const MenuPage: React.FC<MenuPageProps> = ({ onAddToCart }) => {
     }, 1500);
   };
 
-  // Fuzzy search helper - checks if query is similar to text (handles typos)
+  // Fuzzy search helper - checks if query is similar to text (handles typos and multi-words)
   const fuzzyMatch = (text: string, query: string): boolean => {
-    const textLower = text.toLowerCase();
-    const queryLower = query.toLowerCase();
+    // Normalize: remove accents and lowercase
+    const normalize = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
-    // Exact substring match (highest priority)
-    if (textLower.includes(queryLower)) return true;
+    const t = normalize(text);
+    const q = normalize(query);
 
-    // If query is too short, only do exact match
-    if (queryLower.length < 3) return false;
+    const queryWords = q.split(/\s+/).filter(w => w.length > 0);
+    if (queryWords.length === 0) return false;
 
-    // Normalize: remove special characters and spaces
-    const normalizedText = textLower.replace(/[^a-z0-9]/g, '');
-    const normalizedQuery = queryLower.replace(/[^a-z0-9]/g, '');
+    // Create a version with only alphanumeric and spaces for easy word logic
+    const tClean = t.replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ');
+    const tWords = tClean.split(/\s+/).filter(w => w.length > 0);
 
-    // Check if normalized query is a substring of normalized text
-    if (normalizedText.includes(normalizedQuery)) return true;
+    // 1. Exact phrase match at word boundaries (e.g., "iced latte")
+    const escapedQ = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const phraseRegex = new RegExp(`\\b${escapedQ}\\b`);
+    if (phraseRegex.test(tClean)) return true;
 
-    // Only do fuzzy matching for queries 4+ characters to avoid false matches
-    if (normalizedQuery.length < 4) return false;
-
-    // Split into words for word-by-word matching (prevents "tea" matching "coffee")
-    const textWords = textLower.split(/[\s\-_]+/).filter(w => w.length > 0);
-    const queryWords = queryLower.split(/[\s\-_]+/).filter(w => w.length > 0);
-
-    // Check if ALL query words match at least one text word (AND logic)
-    for (const queryWord of queryWords) {
-      if (queryWord.length < 3) continue; // Skip very short words
-
-      let wordMatched = false;
-
-      for (const textWord of textWords) {
-        // Exact match in word
-        if (textWord.includes(queryWord)) {
-          wordMatched = true;
-          break;
-        }
-
-        // Only do fuzzy matching if words are similar length (within 2 chars)
-        if (Math.abs(textWord.length - queryWord.length) > 2) continue;
-
-        // Check if words share the same first 2-3 characters (prefix match)
-        // This prevents "tea" from matching "coffee" (different prefixes)
-        const minPrefix = Math.min(3, Math.min(textWord.length, queryWord.length));
-        if (textWord.substring(0, minPrefix) !== queryWord.substring(0, minPrefix)) {
-          continue; // Different words, skip fuzzy matching
-        }
-
-        // For words that share a prefix, allow common typos
-        const normalizedTextWord = textWord.replace(/[^a-z0-9]/g, '');
-        const normalizedQueryWord = queryWord.replace(/[^a-z0-9]/g, '');
-
-        // Common character swaps only for similar words
-        const commonSwaps: [string, string][] = [
-          ['ee', 'e'], ['e', 'ee'], // coffee/cofee
-          ['a', 'e'], ['e', 'a'], // bagel/begel
-        ];
-
-        for (const [from, to] of commonSwaps) {
-          const swappedQuery = normalizedQueryWord.replace(new RegExp(from, 'g'), to);
-          if (normalizedTextWord.includes(swappedQuery) || swappedQuery.includes(normalizedTextWord)) {
-            wordMatched = true;
-            break;
-          }
-        }
-        if (wordMatched) break;
-
-        // For longer words (5+ chars), allow 1 character difference if they're very similar
-        if (normalizedQueryWord.length >= 5 && normalizedTextWord.length >= 5) {
-          // Count matching characters in order
-          let matchingChars = 0;
-          let textIndex = 0;
-          for (let i = 0; i < normalizedQueryWord.length && textIndex < normalizedTextWord.length; i++) {
-            if (normalizedTextWord[textIndex] === normalizedQueryWord[i]) {
-              matchingChars++;
-              textIndex++;
-            } else if (textIndex + 1 < normalizedTextWord.length &&
-              normalizedTextWord[textIndex + 1] === normalizedQueryWord[i]) {
-              // Allow skipping one character
-              textIndex += 2;
-              matchingChars++;
-            }
-          }
-          // Only match if at least 80% of query characters match (very strict)
-          const matchRatio = matchingChars / normalizedQueryWord.length;
-          if (matchRatio >= 0.8) {
-            wordMatched = true;
-            break;
-          }
-        }
+    // 2. Multi-word AND logic (check each word of query)
+    return queryWords.every(qw => {
+      // For very short query words (1-2 chars), only allow exact word match
+      if (qw.length < 3) {
+        return tWords.includes(qw);
       }
 
-      if (!wordMatched) return false;
-    }
+      // Check for exact word match or prefix match
+      // This allows "tea" to match "tea" or "teapot" but NOT "instead" or "steamed"
+      const hasPrefixMatch = tWords.some(tw => tw === qw || tw.startsWith(qw));
+      if (hasPrefixMatch) return true;
 
-    return true;
+      // 3. Fuzzy match for longer words (allow small typos)
+      if (qw.length >= 4) {
+        return tWords.some(tw => {
+          // Words must be somewhat similar in length
+          if (Math.abs(tw.length - qw.length) > 2) return false;
+          // Only match if they share the same first 2 letters to avoid false positives
+          if (tw.substring(0, 2) !== qw.substring(0, 2)) return false;
+          return getSimilarity(tw, qw) > 0.8;
+        });
+      }
+
+      return false;
+    });
   };
 
   // ALL CATEGORIES (for Sidebar) - independent of search
@@ -680,7 +642,7 @@ const MenuPage: React.FC<MenuPageProps> = ({ onAddToCart }) => {
       const rawLower = rawCategory.toLowerCase();
 
       if (item.category_name) {
-        mainCategoryLabel = item.category_name.toUpperCase();
+        mainCategoryLabel = item.category_name.toUpperCase().replace(/_/g, ' ');
       } else {
         // Fallback Heuristics
         if (rawLower.includes('robusta') || rawLower.includes('blend') || rawLower.includes('manual brew') || rawLower.includes('coffee') || rawLower.includes('espresso') || rawLower.includes('latte')) {
@@ -703,7 +665,7 @@ const MenuPage: React.FC<MenuPageProps> = ({ onAddToCart }) => {
       // --- SUB CATEGORY DETECTION ---
       let subCategoryLabel = 'General';
       if (item.sub_category_name) {
-        subCategoryLabel = item.sub_category_name;
+        subCategoryLabel = item.sub_category_name.replace(/_/g, ' ');
       } else {
         // Extract from parenthesis or legacy group
         // e.g. "Robusta Specialty (Cold - Non Milk)" -> "Robusta Specialty"
@@ -711,7 +673,7 @@ const MenuPage: React.FC<MenuPageProps> = ({ onAddToCart }) => {
         // "Manual Brew (Peaberry...)" -> "Manual Brew"
         const split = rawCategory.split('(');
         if (split.length > 0) {
-          subCategoryLabel = split[0].trim();
+          subCategoryLabel = split[0].trim().replace(/_/g, ' ');
         }
       }
 
@@ -790,71 +752,61 @@ const MenuPage: React.FC<MenuPageProps> = ({ onAddToCart }) => {
       return allCategories;
     }
 
-    const categories = allCategories.map(cat => ({ ...cat, items: [] as MenuItem[] })); // Deep clone structure with empty items
+    // Filter the items within each category/subcategory
+    const filteredResults = allCategories.map(category => {
+      // Deep clone subcategories and filter their items
+      const filteredSubCategories = category.subCategories.map(sub => {
+        const filteredItems = sub.items.filter(item => {
+          // Get full item data for better search
+          const fullItem = menuItems.find(m => m.id === item.id) || item as any;
+          const nameStr = (fullItem.name ?? '').toLowerCase();
+          const categoryStr = (fullItem.category || fullItem.category_legacy || fullItem.category_name || '').toLowerCase();
+          const groupStr = (fullItem.sub_category_name || '').toLowerCase();
+          // Improved combined text for matching
+          const combinedText = `${nameStr} ${categoryStr} ${groupStr}`;
 
-    // We also need to map items back from allCategories structure or re-filter menuItems.
-    // Re-filtering menuItems is safer for search.
+          return fuzzyMatch(combinedText, query);
+        });
+        return { ...sub, items: filteredItems };
+      }).filter(sub => sub.items.length > 0);
 
-    const matchedCategoriesMap = new Map<string, MenuCategory>();
-    // Pre-fill map from allCategories to keep order and metadata
-    allCategories.forEach(c => matchedCategoriesMap.set(c.label, { ...c, items: [] }));
+      // Also filter category.items (flat fallback)
+      const filteredFlatItems = category.items.filter(item => {
+        const fullItem = menuItems.find(m => m.id === item.id) || item as any;
+        const nameStr = (fullItem.name ?? '').toLowerCase();
+        const categoryStr = (fullItem.category || fullItem.category_legacy || fullItem.category_name || '').toLowerCase();
+        const combinedText = `${nameStr} ${categoryStr}`;
+        return fuzzyMatch(combinedText, query);
+      });
 
-    let hasExactMatches = false;
-
-    menuItems.forEach(item => {
-      // duplicates logic from above but that's fine for safety
-      if (!item.name || item.price == null || !item.id) return;
-      const rawCategory = item.category || item.category_legacy || item.category_name || '';
-      const categoryStr = rawCategory.trim();
-      if (!categoryStr) return;
-      const canonicalCategory = categoryStr.toUpperCase();
-
-      // Search
-      const nameStr = (item.name ?? '').toLowerCase();
-      const groupSource = item.sub_category_name || rawCategory;
-      const group = (groupSource.split('(')[0] ?? '').trim();
-
-      // Improved Search Logic:
-      // 1. Check strict substring/fuzzy match
-      const combinedText = `${nameStr} ${categoryStr.toLowerCase()} ${group.toLowerCase()}`;
-
-      if (fuzzyMatch(combinedText, query)) {
-        hasExactMatches = true;
-        if (matchedCategoriesMap.has(canonicalCategory)) {
-          matchedCategoriesMap.get(canonicalCategory)!.items.push({
-            id: item.id,
-            name: item.name,
-            price: item.price
-          });
-        }
-      }
-    });
-
-    // If we have matches, great. If not, check "Did you mean?"
-    // We need to look for a potential match in all items if result is empty OR if matches are weak?
-    // Requirement: "while searching... if there is under 60% similarity... did you mean"
-    // This implies we check similarity against available items.
-
-    // Let's filter out empty categories
-    let results = Array.from(matchedCategoriesMap.values()).filter(c => c.items.length > 0);
-
-    // If NO search query, treat as Tabs: Filter by activeCategoryId
-    if (!query && activeCategoryId) {
-      results = results.filter(c => c.id === activeCategoryId);
-    }
+      return {
+        ...category,
+        subCategories: filteredSubCategories,
+        items: filteredFlatItems
+      };
+    }).filter(category => category.subCategories.length > 0 || category.items.length > 0);
 
     // Sort logic
     if (sortBy === 'price-asc' || sortBy === 'price-desc') {
-      const sorted = results.map(category => {
+      return filteredResults.map(category => {
+        // Sort items in subcategories
+        const sortedSubCategories = category.subCategories.map(sub => ({
+          ...sub,
+          items: [...sub.items].sort((a, b) =>
+            sortBy === 'price-asc' ? a.price - b.price : b.price - a.price
+          )
+        }));
+
+        // Sort flat items
         const sortedItems = [...category.items].sort((a, b) =>
           sortBy === 'price-asc' ? a.price - b.price : b.price - a.price
         );
-        return { ...category, items: sortedItems };
+
+        return { ...category, subCategories: sortedSubCategories, items: sortedItems };
       });
-      return sorted;
     }
 
-    return results;
+    return filteredResults;
 
   }, [allCategories, menuItems, search, sortBy, activeCategoryId]);
 
