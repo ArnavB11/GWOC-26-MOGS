@@ -715,6 +715,8 @@ const CartPage: React.FC<CartPageProps> = ({
                               <input
                                 required
                                 type="time"
+                                min="09:30"
+                                max="23:00"
                                 value={pickupTime}
                                 onChange={(e) => setPickupTime(e.target.value)}
                                 className="w-full bg-white border border-black/20 rounded-none px-3 md:px-4 py-2.5 md:py-3 outline-none focus:border-black text-sm md:text-base"
