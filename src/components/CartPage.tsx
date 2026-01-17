@@ -30,7 +30,7 @@ const CartPage: React.FC<CartPageProps> = ({
   onPaymentFailure,
   artItems = [],
 }) => {
-  const { placeOrder, refreshArtItems } = useDataContext();
+  const { placeOrder, refreshArtItems, orderSettings } = useDataContext();
 
   // EmailJS configuration (must be VITE_ prefixed in .env)
   const EMAILJS_SERVICE_ID = import.meta.env.VITE_EMAILJS_SERVICE_ID as string;
@@ -77,6 +77,9 @@ const CartPage: React.FC<CartPageProps> = ({
   const [paymentMethod, setPaymentMethod] = useState<'counter' | 'upi'>('counter');
   const [orderType, setOrderType] = useState<'grab-and-go' | 'order-from-store' | null>(null);
 
+  const { checkStoreStatus } = useDataContext(); // Destructure checkStoreStatus
+  const storeStatus = checkStoreStatus ? checkStoreStatus() : { isOpen: true, reason: 'loading' }; // Handle missing function gracefully if context outdated
+
   // Razorpay configuration
   const RAZORPAY_KEY_ID = import.meta.env.VITE_RAZORPAY_KEY_ID as string;
 
@@ -109,6 +112,19 @@ const CartPage: React.FC<CartPageProps> = ({
     e.preventDefault();
     if (cart.length === 0) return;
 
+    // Validate global order settings
+    const hasArt = cart.some(c => artItems.some(a => a.id === c.id));
+    const hasMenu = cart.some(c => !artItems.some(a => a.id === c.id));
+
+    if (hasArt && !orderSettings.art_orders_enabled) {
+      setError('Art orders are currently not being accepted.');
+      return;
+    }
+    if (hasMenu && !orderSettings.menu_orders_enabled) {
+      setError('Menu orders are currently not being accepted.');
+      return;
+    }
+
     const name = (customer.name ?? '').trim();
     const phoneDigits = (customer.phone ?? '').replace(/\D/g, '');
     const email = (customer.email ?? '').trim().toLowerCase();
@@ -131,9 +147,19 @@ const CartPage: React.FC<CartPageProps> = ({
       return;
     }
     // Only require pickup time for grab-and-go orders
-    if (orderType === 'grab-and-go' && !pickupTime) {
-      setError('Please select a pickup time.');
-      return;
+    if (orderType === 'grab-and-go') {
+      if (!pickupTime) {
+        setError('Please select a pickup time.');
+        return;
+      }
+
+      // Validate pickup time against store hours
+      if (orderSettings.opening_time && orderSettings.closing_time) {
+        if (pickupTime < orderSettings.opening_time || pickupTime > orderSettings.closing_time) {
+          setError(`Pickup time must be between ${orderSettings.opening_time} and ${orderSettings.closing_time}`);
+          return;
+        }
+      }
     }
 
     setSubmitting(true);

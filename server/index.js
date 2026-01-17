@@ -576,6 +576,96 @@ app.put('/api/orders/:id/status', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
+
+// --- GLOBAL SETTINGS ENDPOINTS ---
+
+app.get('/api/settings', async (req, res) => {
+    try {
+        // Fetch settings - assumed ID=1
+        const { data, error } = await db.from('global_settings').select('*').eq('id', 1).single();
+
+        if (error && error.code !== 'PGRST116') { // PGRST116 is "no rows found"
+            console.error('Error fetching settings:', error);
+            return res.status(500).json({ error: error.message });
+        }
+
+        // If no settings exist yet, return defaults
+        const settings = data || {
+            id: 1,
+            art_orders_enabled: true,
+            menu_orders_enabled: true,
+            id: 1,
+            art_orders_enabled: true,
+            menu_orders_enabled: true,
+            contact_info_1: '',
+            contact_info_2: '',
+            opening_time: '10:00',
+            closing_time: '22:00'
+        };
+
+        res.json(settings);
+    } catch (e) {
+        console.error('Unexpected error fetching settings:', e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+app.post('/api/settings', async (req, res) => {
+    try {
+        console.log('[SETTINGS] Received update request:', req.body);
+        const { art_orders_enabled, menu_orders_enabled, contact_info_1, contact_info_2, opening_time, closing_time } = req.body;
+
+        // Explicitly check if row exists first
+        const { data: existing, error: fetchError } = await db.from('global_settings').select('*').eq('id', 1).single();
+
+        if (fetchError && fetchError.code !== 'PGRST116') {
+            console.error('[SETTINGS] Error checking existence:', fetchError);
+            return res.status(500).json({ error: fetchError.message });
+        }
+
+        let resultData, resultError;
+
+        if (existing) {
+            console.log('[SETTINGS] Updating existing row:', { id: 1, ...req.body });
+            const { data, error } = await db.from('global_settings').update({
+                art_orders_enabled,
+                menu_orders_enabled,
+                contact_info_1,
+                contact_info_2,
+                opening_time,
+                closing_time,
+                updated_at: new Date()
+            }).eq('id', 1).select().single();
+            resultData = data;
+            resultError = error;
+        } else {
+            console.log('[SETTINGS] Inserting new row:', { id: 1, ...req.body });
+            const { data, error } = await db.from('global_settings').insert({
+                id: 1,
+                art_orders_enabled: art_orders_enabled ?? true,
+                menu_orders_enabled: menu_orders_enabled ?? true,
+                contact_info_1: contact_info_1 ?? '',
+                contact_info_2: contact_info_2 ?? '',
+                opening_time: opening_time ?? '10:00',
+                closing_time: closing_time ?? '22:00',
+                updated_at: new Date()
+            }).select().single();
+            resultData = data;
+            resultError = error;
+        }
+
+        if (resultError) {
+            console.error('[SETTINGS] Database operation failed:', resultError);
+            return res.status(500).json({ error: resultError.message });
+        }
+
+        console.log('[SETTINGS] Final saved data:', resultData);
+        res.json(resultData);
+    } catch (e) {
+        console.error('[SETTINGS] Unexpected error:', e);
+        res.status(500).json({ error: e.message });
+    }
+});
 // -----------------------------------------------------
 // BREWDESK VIBE-BASED RECOMMENDATIONS (SMART SHUFFLE)
 // -----------------------------------------------------

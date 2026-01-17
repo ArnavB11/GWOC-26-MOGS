@@ -23,6 +23,10 @@ import {
   TrendingUp,
   Menu,
   Tag as TagIcon,
+  ToggleLeft,
+  ToggleRight,
+  Power,
+  Save,
 } from 'lucide-react';
 import SalesInsights from './SalesInsights';
 import TagPerformance from './TagPerformance';
@@ -64,7 +68,7 @@ interface FranchiseFaqItem {
 }
 
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onLogout }) => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'coffee' | 'orders' | 'art' | 'workshops' | 'manage_categories' | 'franchise_enquiries' | 'franchise_faqs' | 'franchise_settings' | 'sales_trends' | 'tag_performance'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'coffee' | 'orders' | 'art' | 'workshops' | 'manage_categories' | 'franchise_enquiries' | 'franchise_faqs' | 'franchise_settings' | 'sales_trends' | 'tag_performance' | 'settings'>('overview');
   const [isFranchiseOpen, setIsFranchiseOpen] = useState(false);
   const [isInsightsOpen, setIsInsightsOpen] = useState(false);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('');
@@ -102,9 +106,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onLogout }) => 
     { id: 'workshops' as const, label: 'Workshops', icon: Calendar },
     { id: 'manage_categories' as const, label: 'Manage Categories', icon: Layers },
     { id: 'franchise_enquiries' as const, label: 'Franchise Enquiries', icon: MessageSquare },
-    { id: 'franchise_faqs' as const, label: 'Franchise FAQs', icon: HelpCircle },
-    { id: 'franchise_settings' as const, label: 'Franchise Settings', icon: Settings },
+    { id: 'settings' as const, label: 'Settings', icon: Settings },
   ];
+
+  // Local state for contact info to prevent re-rendering issues on every keystroke
+
 
   const [toast, setToast] = useState<{
     show: boolean;
@@ -128,7 +134,48 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onLogout }) => 
     deleteMenuItem,
     updateWorkshop,
     deleteWorkshop,
+    orderSettings,
+    updateOrderSettings,
+    checkStoreStatus
   } = useDataContext();
+
+  // Local state for contact info to prevent re-rendering issues on every keystroke
+  const [localContact1, setLocalContact1] = useState('');
+  const [localContact2, setLocalContact2] = useState('');
+  const [isSettingsInitialized, setIsSettingsInitialized] = useState(false);
+
+  const storeStatus = checkStoreStatus();
+
+  // Helper to determine display status
+  const getStatusDisplay = (isEnabled: boolean) => {
+    if (!isEnabled) return { text: 'STOPPED (Manual)', color: 'bg-red-500', dotColor: 'bg-red-200' };
+    if (!storeStatus.isOpen) return { text: 'PAUSED (Auto)', color: 'bg-yellow-500', dotColor: 'bg-yellow-200' };
+    return { text: 'LIVE', color: 'bg-green-500', dotColor: 'bg-green-200' };
+  };
+
+  const artStatus = getStatusDisplay(orderSettings?.art_orders_enabled ?? true);
+  const menuStatus = getStatusDisplay(orderSettings?.menu_orders_enabled ?? true);
+
+  console.log('[AdminDashboard] Render:', {
+    orderSettingsContacts: {
+      c1: orderSettings?.contact_info_1,
+      c2: orderSettings?.contact_info_2
+    },
+    localContacts: {
+      c1: localContact1,
+      c2: localContact2
+    },
+    isInitialized: isSettingsInitialized
+  });
+
+  // Sync local state when orderSettings loads - ONLY ONCE
+  useEffect(() => {
+    if (orderSettings && !isSettingsInitialized) {
+      setLocalContact1(orderSettings.contact_info_1 || '');
+      setLocalContact2(orderSettings.contact_info_2 || '');
+      setIsSettingsInitialized(true);
+    }
+  }, [orderSettings, isSettingsInitialized]);
 
   // Create a ref or effect to make updateArtItem available to saveArtItem if scoping is an issue, 
   // but since saveArtItem is inside the component, it can just access it. 
@@ -876,6 +923,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onLogout }) => 
             { id: 'orders', label: 'Orders', icon: ClipboardList },
             { id: 'art', label: 'Art Gallery', icon: Palette },
             { id: 'workshops', label: 'Workshops', icon: Calendar },
+            { id: 'settings', label: 'Settings', icon: Settings },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -967,7 +1015,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onLogout }) => 
           <div className="pt-2">
             <button
               onClick={() => setIsFranchiseOpen(!isFranchiseOpen)}
-              className={`w-full flex items-center justify-between px-3 py-2 text-left transition-all border-l-2 ${['franchise_enquiries', 'franchise_faqs', 'franchise_settings'].includes(activeTab)
+              className={`w-full flex items-center justify-between px-3 py-2 text-left transition-all border-l-2 ${['franchise_enquiries', 'franchise_faqs'].includes(activeTab)
                 ? 'border-black text-[#0a0a0a]'
                 : 'border-transparent text-zinc-500 hover:text-[#0a0a0a] hover:border-black/10'
                 }`}
@@ -991,7 +1039,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onLogout }) => 
                 >
                   {[
                     { id: 'franchise_enquiries', label: 'Enquiries', icon: MessageSquare },
-                    { id: 'franchise_settings', label: 'Settings', icon: Settings },
                   ].map((sub) => (
                     <button
                       key={sub.id}
@@ -1056,6 +1103,39 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onLogout }) => 
               <p className="text-xs md:text-sm uppercase tracking-[0.3em] text-zinc-500 font-sans">
                 Rabuste Coffee — Internal Console
               </p>
+            </div>
+
+            {/* ORDER STATUS PILLS */}
+            {/* ORDER STATUS PILLS - SHARP & BOLD */}
+            <div className="mt-6 md:mt-0 md:ml-8 flex items-center space-x-4">
+              {/* Art Status */}
+              <div className={`px-3 py-1.5 rounded-md flex items-center space-x-2 ${artStatus.color} text-white shadow-sm`}>
+                <span className={`w-1 h-1 rounded-full ${artStatus.dotColor}`} />
+                <span className="text-[10px] font-bold tracking-widest uppercase">ART: {artStatus.text}</span>
+              </div>
+
+              {/* Menu Status */}
+              <div className={`px-3 py-1.5 rounded-md flex items-center space-x-2 ${menuStatus.color} text-white shadow-sm`}>
+                <span className={`w-1 h-1 rounded-full ${menuStatus.dotColor}`} />
+                <span className="text-[10px] font-bold tracking-widest uppercase">MENU: {menuStatus.text}</span>
+              </div>
+
+              <button
+                onClick={() => setActiveTab('settings')}
+                className="p-2 hover:bg-black/5 rounded-full transition-colors text-black/40 hover:text-black"
+              >
+                <Settings className="w-5 h-5" />
+              </button>
+              <button
+                onClick={() => {
+                  setIsMobileMenuOpen(false);
+                  onLogout();
+                  onBack();
+                }}
+                className="p-2 hover:bg-black/5 rounded-full transition-colors text-black/40 hover:text-black"
+              >
+                <LogOut className="w-5 h-5" />
+              </button>
             </div>
 
             <div className="mt-4 md:mt-0">
@@ -1282,22 +1362,162 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onLogout }) => 
           )
         }
 
-        {
-          activeTab === 'franchise_settings' && (
-            <div className="max-w-5xl space-y-24 pb-20">
+
+        {activeTab === 'settings' && (
+          <div className="max-w-4xl space-y-16 pb-20">
+            {/* Header */}
+            <div>
+              <h1 className="text-4xl font-serif mb-2">Settings</h1>
+              <p className="text-zinc-500 font-light">Manage global configurations for orders and franchise information.</p>
+            </div>
+
+            {/* ORDER AVAILABILITY */}
+            <section>
+              <h2 className="text-2xl font-serif mb-2">Order Availability</h2>
+              <p className="text-zinc-500 text-sm mb-6 font-light">Control whether customers can place orders for specific categories.</p>
+
+              <div className="bg-white border border-black/10 shadow-sm overflow-hidden rounded-xl">
+                {/* Art Orders Toggle */}
+                <div className="p-8 border-b border-black/5 flex items-start justify-between">
+                  <div>
+                    <h3 className="text-lg font-serif mb-1">Accepting Art Orders</h3>
+                    <p className="text-xs text-zinc-500 uppercase tracking-widest">
+                      Live status for artwork purchases.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => updateOrderSettings({ art_orders_enabled: !orderSettings.art_orders_enabled })}
+                    className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors focus:outline-none ${orderSettings?.art_orders_enabled ? 'bg-green-600' : 'bg-zinc-200'}`}
+                  >
+                    <span className={`${orderSettings?.art_orders_enabled ? 'translate-x-7' : 'translate-x-1'} inline-block h-6 w-6 transform rounded-full bg-white transition-transform shadow-sm`} />
+                  </button>
+                </div>
+
+                {/* Menu Orders Toggle */}
+                <div className="p-8 flex items-start justify-between">
+                  <div>
+                    <h3 className="text-lg font-serif mb-1">Accepting Menu Orders</h3>
+                    <p className="text-xs text-zinc-500 uppercase tracking-widest">
+                      Live status for food and beverage orders.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => updateOrderSettings({ menu_orders_enabled: !orderSettings.menu_orders_enabled })}
+                    className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors focus:outline-none ${orderSettings?.menu_orders_enabled ? 'bg-green-600' : 'bg-zinc-200'}`}
+                  >
+                    <span className={`${orderSettings?.menu_orders_enabled ? 'translate-x-7' : 'translate-x-1'} inline-block h-6 w-6 transform rounded-full bg-white transition-transform shadow-sm`} />
+                  </button>
+                </div>
+              </div>
+            </section>
+
+            <hr className="border-black/5" />
+
+            {/* STORE TIMINGS */}
+            <section>
+              <h2 className="text-2xl font-serif mb-2">Store Timings</h2>
+              <p className="text-zinc-500 text-sm mb-6 font-light">Set opening and closing hours. Orders are automatically paused outside these times.</p>
+
+              <div className="bg-white border border-black/10 shadow-sm rounded-xl p-8 grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Opening Time</label>
+                  <input
+                    type="time"
+                    value={orderSettings?.opening_time || '10:00'}
+                    onChange={(e) => updateOrderSettings({ opening_time: e.target.value })}
+                    className="w-full p-3 border border-black/10 rounded-lg focus:outline-none focus:border-black transition-colors bg-zinc-50/50 cursor-pointer"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Closing Time</label>
+                  <input
+                    type="time"
+                    value={orderSettings?.closing_time || '22:00'}
+                    onChange={(e) => updateOrderSettings({ closing_time: e.target.value })}
+                    className="w-full p-3 border border-black/10 rounded-lg focus:outline-none focus:border-black transition-colors bg-zinc-50/50 cursor-pointer"
+                  />
+                </div>
+              </div>
+            </section>
+
+
+            {/* FRANCHISE SETTINGS */}
+            <section>
+              <h2 className="text-2xl font-serif mb-2">Franchise Contact Settings</h2>
+              <p className="text-zinc-500 text-sm mb-6 font-light">Update contact information displayed on the Franchise page.</p>
+
               <FranchiseSettingsManager
                 contactNumber={franchiseContact}
                 onSave={saveFranchiseContact}
               />
+            </section>
+
+            <hr className="border-black/5" />
+
+            <section>
+              <h2 className="text-2xl font-serif mb-2">Footer Contact Information</h2>
+              <p className="text-zinc-500 text-sm mb-6 font-light">Displayed under the Connect section in the website footer.</p>
+
+              <div className="bg-white border border-black/10 shadow-sm rounded-xl p-8 space-y-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Contact Info 1</label>
+                  <input
+                    type="text"
+                    value={localContact1}
+                    onChange={(e) => setLocalContact1(e.target.value)}
+                    placeholder="e.g. +91 98765 43210"
+                    className="w-full p-3 border border-black/10 rounded-lg focus:outline-none focus:border-black transition-colors bg-zinc-50/50"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Contact Info 2</label>
+                  <input
+                    type="text"
+                    value={localContact2}
+                    onChange={(e) => setLocalContact2(e.target.value)}
+                    placeholder="e.g. hello@rabuste.com"
+                    className="w-full p-3 border border-black/10 rounded-lg focus:outline-none focus:border-black transition-colors bg-zinc-50/50"
+                  />
+                </div>
+
+                <div className="flex justify-end pt-2">
+                  <button
+                    onClick={async () => {
+                      try {
+                        await updateOrderSettings({
+                          contact_info_1: localContact1,
+                          contact_info_2: localContact2
+                        });
+                        showToast('Footer contact info updated', 'success');
+                      } catch (error) {
+                        console.error('Failed to save settings:', error);
+                        showToast('Failed to save changes. Check console.', 'error');
+                      }
+                    }}
+                    className="flex items-center space-x-2 bg-black text-white px-6 py-2.5 rounded-lg hover:bg-zinc-800 transition-colors text-sm uppercase tracking-wider font-medium"
+                  >
+                    <Save className="w-4 h-4" />
+                    <span>Save Changes</span>
+                  </button>
+                </div>
+              </div>
+            </section>
+
+            <hr className="border-black/5" />
+
+            {/* FAQ SETTINGS */}
+            <section>
+              <h2 className="text-2xl font-serif mb-2">FAQ / Information Settings</h2>
+              <p className="text-zinc-500 text-sm mb-6 font-light">Manage Frequently Asked Questions for prospective franchise partners.</p>
 
               <FranchiseFaqManager
                 items={franchiseFaqs}
                 onAdd={addFaq}
                 onDelete={deleteFaq}
               />
-            </div>
-          )
-        }
+            </section>
+          </div>
+        )}
       </main >
 
       {/* Coffee modal - Notion/Linear styled */}

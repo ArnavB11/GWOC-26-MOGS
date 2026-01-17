@@ -250,7 +250,7 @@ interface TrendingItem {
 }
 
 const MenuPage: React.FC<MenuPageProps> = ({ onAddToCart }) => {
-  const { menuItems } = useDataContext();
+  const { menuItems, orderSettings } = useDataContext();
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState<'default' | 'price-asc' | 'price-desc'>('default');
   const [activeCategoryId, setActiveCategoryId] = useState<string>('');
@@ -544,6 +544,14 @@ const MenuPage: React.FC<MenuPageProps> = ({ onAddToCart }) => {
   };
 
   const handleAddToCart = (category: MenuCategory, item: MenuItem) => {
+    // Check if ordering is enabled
+    if (!orderSettings.menu_orders_enabled) {
+      setToastMessage('Ordering is currently paused.');
+      if (toastTimeoutRef.current) window.clearTimeout(toastTimeoutRef.current);
+      toastTimeoutRef.current = window.setTimeout(() => setToastMessage(null), 2000);
+      return;
+    }
+
     const cartItem: CoffeeItem = {
       id: item.id,
       name: item.name,

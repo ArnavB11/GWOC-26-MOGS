@@ -3,11 +3,14 @@ import React from 'react';
 import { Instagram, ArrowUp } from 'lucide-react';
 import { Page } from '../types';
 
+import { useDataContext } from '../DataContext';
+
 interface FooterProps {
   onNavigate: (page: Page) => void;
 }
 
 const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
+  const { orderSettings } = useDataContext();
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -82,6 +85,20 @@ const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
                 </span>
               </a>
             </li>
+            {orderSettings?.contact_info_1 && (
+              <li className="flex items-center space-x-3 text-zinc-400 normal-case tracking-normal">
+                <span className="relative text-zinc-200">
+                  {orderSettings.contact_info_1}
+                </span>
+              </li>
+            )}
+            {orderSettings?.contact_info_2 && (
+              <li className="flex items-center space-x-3 text-zinc-400 normal-case tracking-normal">
+                <span className="relative text-zinc-200">
+                  {orderSettings.contact_info_2}
+                </span>
+              </li>
+            )}
           </ul>
         </div>
       </div>

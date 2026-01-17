@@ -14,8 +14,13 @@ import { Calendar, TrendingUp, DollarSign, CalendarDays } from 'lucide-react';
 type TimeRange = 'daily' | 'weekly' | 'monthly' | 'yearly';
 
 const SalesInsights: React.FC = () => {
-    const { orders } = useDataContext();
+    const { orders, menuItems, artItems } = useDataContext();
     const [timeRange, setTimeRange] = useState<TimeRange>('daily');
+    const [salesCategory, setSalesCategory] = useState<'all' | 'menu' | 'art'>('all');
+
+    // Create fast lookup sets for item types
+    const menuIds = useMemo(() => new Set(menuItems.map(m => m.id)), [menuItems]);
+    const artIds = useMemo(() => new Set(artItems.map(a => a.id)), [artItems]);
 
     // Helper to format currency
     const formatCurrency = (amount: number) => {
@@ -52,26 +57,22 @@ const SalesInsights: React.FC = () => {
         if (!orders || orders.length === 0) return [];
 
         const startDate = getStartDate(timeRange);
+
+        // Filter orders by date first
         const validOrders = orders.filter(
             (o) => {
                 const date = new Date(o.date);
-                // Check date validity
                 if (isNaN(date.getTime())) return false;
 
-                // Include:
-                // 1. Explicitly PAID status
-                // 2. Pay at Counter (even if Pending)
-                // 3. PENDING_PAYMENT (often used for Counter/Cash orders in this system)
                 const isPaid = o.payment_status === 'PAID' || o.payment_status === 'Paid';
                 const isCounter = o.payment_method === 'Paid at Counter' || o.payment_method === 'counter';
-                const isPending = o.payment_status === 'PENDING_PAYMENT'; // Capture initial counter orders
+                const isPending = o.payment_status === 'PENDING_PAYMENT';
 
                 return date >= startDate && (isPaid || isCounter || isPending);
             }
         );
-        // Sort by date ascending for aggregation
-        validOrders.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
+        validOrders.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
         const dataMap = new Map<string, number>();
 
@@ -81,19 +82,14 @@ const SalesInsights: React.FC = () => {
 
             switch (timeRange) {
                 case 'daily':
-                    // DD MMM, e.g., 24 Oct
                     key = date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
                     break;
                 case 'weekly':
-                    // Week start derived or simple "Wk 42"
-                    // For simplicity in this demo, grouping by distinct week string or just every 7 days?
-                    // Let's use logic: Start of week key
                     const startOfWeek = new Date(date);
-                    startOfWeek.setDate(date.getDate() - date.getDay()); // Sunday start
+                    startOfWeek.setDate(date.getDate() - date.getDay());
                     key = startOfWeek.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
                     break;
                 case 'monthly':
-                    // MMM YYYY
                     key = date.toLocaleDateString('en-IN', { month: 'short', year: 'numeric' });
                     break;
                 case 'yearly':
@@ -101,20 +97,46 @@ const SalesInsights: React.FC = () => {
                     break;
             }
 
-            dataMap.set(key, (dataMap.get(key) || 0) + order.total);
+            // Calculate order total based on selected category
+            let orderTotal = 0;
+
+            if (salesCategory === 'all') {
+                orderTotal = order.total;
+            } else {
+                // Sum specific items
+                order.items.forEach((item: any) => {
+                    const price = Number(item.price) || 0;
+                    const qty = Number(item.quantity) || 1;
+
+                    if (salesCategory === 'menu') {
+                        // Check if item is in menu list OR starts with 'c' (legacy fallback)
+                        if (menuIds.has(item.id) || String(item.id).startsWith('c')) {
+                            orderTotal += price * qty;
+                        }
+                    } else if (salesCategory === 'art') {
+                        // Check if item is in art list OR starts with 'a' (legacy fallback)
+                        if (artIds.has(item.id) || String(item.id).startsWith('a')) {
+                            orderTotal += price * qty;
+                        }
+                    }
+                });
+            }
+
+            // Only add if there is value (optional: allow 0 to show gaps?)
+            // We accumulate 0s too to keep timeline correct if needed, but usually we just want positive sales
+            if (orderTotal > 0 || salesCategory === 'all') { // Keep 'all' behavior or allow 0 sum?
+                dataMap.set(key, (dataMap.get(key) || 0) + orderTotal);
+            }
         });
 
-        // Convert map to array and handle gaps if necessary (skipping gap filling for simplicity now)
         return Array.from(dataMap.entries()).map(([name, value]) => ({ name, value }));
-    }, [orders, timeRange]);
+    }, [orders, timeRange, salesCategory, menuIds, artIds]);
 
     // Stats Logic
     const stats = useMemo(() => {
         const totalSales = chartData.reduce((acc, curr) => acc + curr.value, 0);
         const averageSales = chartData.length > 0 ? totalSales / chartData.length : 0;
         const peakSales = Math.max(...chartData.map((d) => d.value), 0);
-
-        // Find the record with peak sales
         const peakRecord = chartData.find(d => d.value === peakSales);
 
         return { totalSales, averageSales, peakSales, peakLabel: peakRecord?.name };
@@ -134,8 +156,39 @@ const SalesInsights: React.FC = () => {
                     </p>
                 </div>
 
-                <div className="flex items-center gap-2">
-                    {/* Custom Select mimicking the minimalist style */}
+                <div className="flex items-center gap-4">
+                    {/* Sales Category Filter */}
+                    <div className="inline-flex bg-zinc-100 rounded-lg p-1 border border-black/5">
+                        <button
+                            onClick={() => setSalesCategory('all')}
+                            className={`px-3 py-1.5 text-[10px] uppercase tracking-widest rounded-md transition-all ${salesCategory === 'all'
+                                    ? 'bg-white text-black shadow-sm font-semibold'
+                                    : 'text-zinc-500 hover:text-black hover:bg-black/5'
+                                }`}
+                        >
+                            All Sales
+                        </button>
+                        <button
+                            onClick={() => setSalesCategory('menu')}
+                            className={`px-3 py-1.5 text-[10px] uppercase tracking-widest rounded-md transition-all ${salesCategory === 'menu'
+                                    ? 'bg-white text-black shadow-sm font-semibold'
+                                    : 'text-zinc-500 hover:text-black hover:bg-black/5'
+                                }`}
+                        >
+                            Menu Orders
+                        </button>
+                        <button
+                            onClick={() => setSalesCategory('art')}
+                            className={`px-3 py-1.5 text-[10px] uppercase tracking-widest rounded-md transition-all ${salesCategory === 'art'
+                                    ? 'bg-white text-black shadow-sm font-semibold'
+                                    : 'text-zinc-500 hover:text-black hover:bg-black/5'
+                                }`}
+                        >
+                            Art Orders
+                        </button>
+                    </div>
+
+                    {/* Time Range Select */}
                     <div className="relative group">
                         <select
                             value={timeRange}
